@@ -84,7 +84,18 @@
         .btn.btn-ghost:hover { border-color: var(--emerald); }
         .btn.btn-sm { padding: 8px 14px; font-size: 0.85rem; }
 
+        .hidden { display: none !important; }
         .hidden-input { display: none; }
+
+        /* Мобільний тач для Cropper: не даємо сторінці скролитись замість ресайзу,
+           і збільшуємо хіт-зону тонких ліній для пальця */
+        .cropper-container, .cropper-container * { touch-action: none; }
+        .cropper-line.line-e, .cropper-line.line-w {
+            width: 24px !important; margin-left: -12px;
+        }
+        .cropper-line.line-n, .cropper-line.line-s {
+            height: 24px !important; margin-top: -12px;
+        }
 
         #croppers-grid > div {
             margin-bottom: 16px; border-radius: 12px; overflow: hidden;
@@ -205,6 +216,17 @@
 
         h3 { font-size: 1rem; color: var(--text-dim); margin: 22px 0 8px; }
 
+        #review-list { max-width: 420px; margin: 18px auto; text-align: left; }
+        .review-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 10px 4px; border-bottom: 1px solid #334155;
+        }
+        .review-name { font-size: 0.95rem; word-break: break-word; }
+        .review-input {
+            flex: 1; background: var(--bg); border: 1px solid #334155; border-radius: 8px;
+            padding: 8px 10px; color: var(--text); font-family: inherit; font-size: 0.9rem;
+        }
+
         @media (max-width: 480px) {
             body { padding: 12px; }
             .step { padding: 16px; border-radius: 14px; }
@@ -226,13 +248,20 @@
 
         <div id="step-1" class="step">
             <h2>Крок 1: Завантаження результатів опитування</h2>
-            <p>Завантаж скрін опитування з Telegram і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо — тільки імена гравців! це обов'язково!). Якщо потрібно декілька скрінів — натисни кнопку "+Ще скрін" і обріж його так само.<br>Після цього тисни "Розпізнати" — створиться перелік всіх гравців у вигляді карточок.</p>
+            <p>Завантаж скрін опитування з Telegram (кнопка "Завантажити скрін") і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо — тільки імена гравців! це обов'язково! якщо в скріні прописане не повне ім'я гравця це не суттєво — головне розуміти хто є хто). Якщо потрібно декілька скрінів — натисни кнопку "+Ще скрін" і обріж його так само. Після цього тисни "Розпізнати гравців" — створиться перелік всіх гравців у вигляді карток.</p>
             <input type="file" id="file-input" accept="image/*" class="hidden-input">
             <button class="btn" onclick="document.getElementById('file-input').click()">Завантажити скрін</button>
             <div id="croppers-grid" style="margin-top:16px;"></div>
             <button id="add-screen-btn" class="btn btn-ghost hidden" onclick="document.getElementById('file-input').click()">+ Ще скрін</button>
             <button id="process-btn" class="btn hidden" style="margin-top:16px;">Розпізнати гравців</button>
             <div id="status-line" class="status-line"></div>
+        </div>
+
+        <div id="step-1b" class="step hidden">
+            <h2>Перевірка заявки</h2>
+            <p>Переглянь чи вірно вказані імена всіх футболістів? Якщо потрібно натисни "Правити" і зроби як треба. Наразі розпізнано наступних гравців:</p>
+            <div id="review-list"></div>
+            <button class="btn" onclick="goToDraft()">Перейти до жеребкування</button>
         </div>
 
         <div id="step-2" class="step hidden">
@@ -338,10 +367,8 @@
                     allNames.push(...cleanNames(text));
                 }
                 setStatus(`Готово: ${allNames.length} гравців`, false);
-                renderPlayers(allNames);
-                switchStep('step-1', 'step-2');
-                renderTeams();
-                startDraft(3);
+                renderReviewList(allNames);
+                switchStep('step-1', 'step-1b');
             } catch (err) {
                 setStatus('Помилка розпізнавання: ' + (err.message || err), false);
                 btn.disabled = false;
@@ -354,6 +381,52 @@
             const to = document.getElementById(toId);
             from.classList.add('hidden');
             to.classList.remove('hidden');
+        }
+
+        // ---- Крок 1b: перевірка та правка розпізнаних імен ----
+        let recognizedNames = [];
+
+        function renderReviewList(names) {
+            recognizedNames = [...names];
+            const container = document.getElementById('review-list');
+            container.innerHTML = '';
+            recognizedNames.forEach((name, idx) => {
+                const row = document.createElement('div');
+                row.className = 'review-row';
+                row.innerHTML = `
+                    <span class="review-name">${name}</span>
+                    <input class="review-input hidden" type="text" value="${name}">
+                    <button class="btn btn-ghost btn-sm review-edit-btn">Правити</button>`;
+                const nameSpan = row.querySelector('.review-name');
+                const input = row.querySelector('.review-input');
+                const editBtn = row.querySelector('.review-edit-btn');
+                editBtn.onclick = () => {
+                    if (input.classList.contains('hidden')) {
+                        nameSpan.classList.add('hidden');
+                        input.classList.remove('hidden');
+                        input.focus();
+                        editBtn.innerText = 'Готово';
+                    } else {
+                        const val = input.value.trim() || recognizedNames[idx];
+                        recognizedNames[idx] = val;
+                        nameSpan.innerText = val;
+                        nameSpan.classList.remove('hidden');
+                        input.classList.add('hidden');
+                        editBtn.innerText = 'Правити';
+                    }
+                };
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') editBtn.click();
+                });
+                container.appendChild(row);
+            });
+        }
+
+        function goToDraft() {
+            renderPlayers(recognizedNames);
+            switchStep('step-1b', 'step-2');
+            renderTeams();
+            startDraft(3);
         }
 
         function renderTeams() {
