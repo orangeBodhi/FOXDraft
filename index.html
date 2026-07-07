@@ -8,16 +8,20 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
     <style>
-        :root { --primary: #2563eb; --bg: #0f172a; --card-bg: #1e293b; --text: #f8fafc; --grass-green: #4ade80; }
+        :root { --bg: #0f172a; --card-bg: #1e293b; --text: #f8fafc; --emerald: #34d399; }
         body { font-family: 'Roboto', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; margin: 0; }
         .wrapper { max-width: 800px; margin: 0 auto; }
         
-        .main-logo { text-align: center; margin-bottom: 20px; }
-        .main-logo img { width: 120px; height: 120px; border-radius: 16px; border: 3px solid #334155; }
+        /* Логотип зафіксовано зверху для всіх кроків */
+        .main-logo { text-align: center; margin-bottom: 30px; }
+        .main-logo img { width: 120px; height: 120px; border-radius: 16px; border: 3px solid #334155; background-color: #334155; }
         
         .step { background: var(--card-bg); padding: 25px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
         .hidden { display: none !important; }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; color: white; background-color: var(--grass-green); margin: 5px; }
+        
+        /* Смарагдові кнопки з кольором тексту як бекграунд */
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; color: var(--bg); background-color: var(--emerald); margin: 5px; }
+        .btn:hover { filter: brightness(0.9); }
         
         .teams-row { display: flex; gap: 20px; margin-bottom: 30px; justify-content: center; flex-wrap: wrap; }
         .team-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -35,7 +39,8 @@
 <body>
     <div class="wrapper">
         <div class="main-logo">
-            <img src="assets/fox-logo.png" alt="FOX Logo">
+            <!-- Використовуємо placeholder, поки не заміните на реальний файл -->
+            <img src="https://placehold.co/120x120?text=FOX" alt="FOX Logo">
         </div>
 
         <div id="step-1" class="step">
@@ -70,9 +75,9 @@
     <script>
         const croppers = [];
         const initialTeams = [
-            { name: 'Фортуна', img: 'assets/fortune.png' },
-            { name: 'Отамани', img: 'assets/otamans.png' },
-            { name: 'Характер', img: 'assets/character.png' }
+            { name: 'Фортуна', img: 'https://placehold.co/100x100?text=Fortuna' },
+            { name: 'Отамани', img: 'https://placehold.co/100x100?text=Otamany' },
+            { name: 'Характер', img: 'https://placehold.co/100x100?text=Kharakter' }
         ];
 
         document.getElementById('file-input').addEventListener('change', (e) => {
@@ -151,7 +156,7 @@
                 will.remove();
                 btn.innerText = "+ Додати команду Воля";
             } else {
-                createTeamUI('Воля', 'assets/will.png');
+                createTeamUI('Воля', 'https://placehold.co/100x100?text=Volya');
                 btn.innerText = "- Прибрати команду Воля";
             }
         }
