@@ -8,24 +8,23 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
     <style>
-        :root { --primary: #2563eb; --bg: #0f172a; --card-bg: #1e293b; --text: #f8fafc; --grass-green: #4ade80; --danger: #ef4444; }
+        :root { --primary: #2563eb; --bg: #0f172a; --card-bg: #1e293b; --text: #f8fafc; --grass-green: #4ade80; }
         body { font-family: 'Roboto', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; margin: 0; }
         .wrapper { max-width: 800px; margin: 0 auto; }
         .step { background: var(--card-bg); padding: 25px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
         .hidden { display: none !important; }
-        
-        .btn { padding: 12px 24px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; color: white; background-color: var(--grass-green); }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; color: white; background-color: var(--grass-green); margin: 5px; }
         .btn:hover { filter: brightness(1.1); }
-        
-        .captain-slot { width: 140px; height: 35px; border: 2px dashed #64748b; border-radius: 8px; overflow: hidden; padding: 0; display: flex; align-items: center; justify-content: center; }
-        .player-card { background: #334155; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: grab; font-weight: 500; }
         
         .teams-row { display: flex; gap: 20px; margin-bottom: 30px; justify-content: center; flex-wrap: wrap; }
         .team-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .team-logo { width: 100px; height: 100px; border: 2px solid #334155; border-radius: 12px; background-size: contain; background-repeat: no-repeat; background-position: center; }
-        .team-name { font-size: 1.2rem; font-weight: 800; color: white; }
+        .team-logo { width: 80px; height: 80px; border: 2px solid #334155; border-radius: 12px; background-size: contain; background-repeat: no-repeat; background-position: center; }
         
-        .basket { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid #334155; min-height: 120px; }
+        .draft-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; }
+        .column-basket { background: #0f172a; padding: 10px; border-radius: 8px; min-height: 200px; border: 1px dashed #475569; }
+        
+        .player-card { background: #334155; padding: 8px; margin: 5px 0; border-radius: 4px; cursor: grab; text-align: center; }
+        .basket { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid #334155; min-height: 100px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -42,10 +41,17 @@
 
         <div id="step-2" class="step hidden">
             <h2>Крок 2: Драфт</h2>
-            <div id="teams-row" class="teams-row"></div>
-            <button id="toggle-will-btn" class="btn" onclick="toggleWillTeam()">+ Додати команду Воля</button>
-            <h3>Список гравців</h3>
-            <div id="players-list" class="basket" style="min-height: 50px;"></div>
+            <div id="basket-selector">
+                <p>Обери кількість кошиків:</p>
+                <div id="basket-buttons"></div>
+            </div>
+            <div id="draft-ui" class="hidden">
+                <div id="teams-row" class="teams-row"></div>
+                <button id="toggle-will-btn" class="btn" onclick="toggleWillTeam()">+ Додати команду Воля</button>
+                <div id="draft-grid" class="draft-grid"></div>
+                <h3>Залишок гравців</h3>
+                <div id="players-list" class="basket"></div>
+            </div>
         </div>
     </div>
 
@@ -80,12 +86,36 @@
             renderPlayers(allNames);
             document.getElementById('step-1').classList.add('hidden');
             document.getElementById('step-2').classList.remove('hidden');
-            renderTeams();
+            renderBasketButtons();
         });
+
+        function renderBasketButtons() {
+            const container = document.getElementById('basket-buttons');
+            for(let i=2; i<=8; i++) {
+                const b = document.createElement('button');
+                b.className = 'btn';
+                b.innerText = i;
+                b.onclick = () => startDraft(i);
+                container.appendChild(b);
+            }
+        }
+
+        function startDraft(count) {
+            document.getElementById('basket-selector').classList.add('hidden');
+            document.getElementById('draft-ui').classList.remove('hidden');
+            renderTeams();
+            const grid = document.getElementById('draft-grid');
+            for(let i=0; i<count; i++) {
+                const col = document.createElement('div');
+                col.className = 'column-basket';
+                col.innerHTML = `<h4>Кошик ${i+1}</h4>`;
+                grid.appendChild(col);
+                new Sortable(col, { group: 'shared' });
+            }
+        }
 
         function renderTeams() {
             const row = document.getElementById('teams-row');
-            row.innerHTML = '';
             initialTeams.forEach(t => createTeamUI(t.name, t.img));
         }
 
@@ -93,25 +123,23 @@
             const row = document.getElementById('teams-row');
             const div = document.createElement('div');
             div.className = 'team-container';
-            div.innerHTML = `<div class="team-name">${name}</div><div class="team-logo" style="background-image:url('${img}')"></div><div class="captain-slot" data-team="${name}"></div>`;
+            div.innerHTML = `<div class="team-name">${name}</div><div class="team-logo" style="background-image:url('${img}')"></div>`;
             row.appendChild(div);
-            new Sortable(div.querySelector('.captain-slot'), { group: 'shared' });
         }
 
         function toggleWillTeam() {
             const btn = document.getElementById('toggle-will-btn');
-            const existingWill = document.querySelector('[data-team="Воля"]');
-            const playersList = document.getElementById('players-list');
-            
-            if (existingWill) {
-                const captainCard = existingWill.querySelector('.player-card');
-                if (captainCard) {
-                    playersList.appendChild(captainCard);
-                }
-                existingWill.parentElement.remove();
+            let will = document.querySelector('.team-container[data-team="Воля"]');
+            if (will) {
+                will.remove();
                 btn.innerText = "+ Додати команду Воля";
             } else {
-                createTeamUI('Воля', 'assets/will.png');
+                const row = document.getElementById('teams-row');
+                const div = document.createElement('div');
+                div.className = 'team-container';
+                div.setAttribute('data-team', 'Воля');
+                div.innerHTML = `<div class="team-name">Воля</div><div class="team-logo" style="background: red;"></div>`;
+                row.appendChild(div);
                 btn.innerText = "- Прибрати команду Воля";
             }
         }
