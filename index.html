@@ -7,7 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -114,9 +113,23 @@
         }
         .team-logo {
             width: 88px; height: 88px; border: 2px solid #334155; border-radius: 12px;
-            background-size: cover; background-position: center; background-color: var(--bg);
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            background-color: #fff;
         }
-        .team-name { font-weight: 800; font-size: 0.95rem; text-align: center; }
+        .team-name {
+            font-weight: 800; font-size: 0.95rem; text-align: center;
+            min-height: 2.4em; display: flex; align-items: center; justify-content: center;
+        }
+
+        .captain-badge {
+            width: 24px; height: 24px; border-radius: 50%;
+            background: linear-gradient(160deg, #ffd452, #d69a1f);
+            border: 2px solid #1a1206;
+            color: #1a1206; font-weight: 900; font-size: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
 
         .captain-slot {
             width: 100%; min-height: 44px; border: 2px dashed #475569; border-radius: 10px;
@@ -126,37 +139,60 @@
         .captain-slot:empty::after {
             content: 'Капітан'; color: #475569; font-size: 0.78rem; font-style: italic;
         }
-        .captain-slot.drag-over { border-color: var(--emerald); background: rgba(52,211,153,0.06); }
 
         #basket-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 
         .draft-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 16px; margin-top: 18px;
+            gap: 16px; margin-top: 4px;
         }
         .column-basket {
             background: var(--card-bg-2); padding: 12px; border-radius: 12px;
-            min-height: 130px; border: 1.5px dashed #475569; transition: border-color .15s, background .15s;
+            min-height: 130px; border: 1.5px solid #334155;
         }
         .column-basket h4 { margin: 0 0 8px; font-size: 0.9rem; color: var(--emerald); }
-        .column-basket.drag-over { border-color: var(--emerald); background: rgba(52,211,153,0.05); }
 
-        .player-card {
-            background: #334155; padding: 9px 10px; margin: 5px 0; border-radius: 8px;
-            cursor: grab; text-align: center; font-size: 0.9rem; font-weight: 500;
-            touch-action: none; user-select: none;
-            transition: transform .1s ease, background .15s ease;
-        }
-        .player-card:active { cursor: grabbing; }
-        .player-card.sortable-chosen { background: #475569; }
-        .player-card.sortable-ghost { opacity: 0.3; }
+        .tiles-zone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 20px; }
 
-        .basket {
-            background: var(--card-bg); padding: 15px; border-radius: 14px;
-            border: 1px solid #334155; min-height: 90px; margin-top: 10px;
+        /* ---- флип-картки гравців ---- */
+        .flip-card { width: 108px; height: 124px; perspective: 900px; }
+        .flip-inner {
+            position: relative; width: 100%; height: 100%;
+            transition: transform .5s cubic-bezier(.4,.2,.2,1);
+            transform-style: preserve-3d;
         }
-        .basket.drag-over { border-color: var(--emerald); }
+        .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+        .flip-front, .flip-back {
+            position: absolute; inset: 0; backface-visibility: hidden;
+            border-radius: 10px; padding: 8px; box-sizing: border-box;
+        }
+        .flip-front {
+            background: #334155; display: flex; align-items: center; justify-content: center;
+            text-align: center; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+            word-break: break-word;
+        }
+        .flip-back {
+            background: #16213a; transform: rotateY(180deg);
+            display: flex; flex-direction: column;
+        }
+        .back-close {
+            position: absolute; top: 4px; right: 7px; font-size: 12px;
+            color: var(--text-dim); cursor: pointer; line-height: 1;
+        }
+        .flip-btn-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+            margin-top: 16px;
+        }
+        .flip-btn {
+            background: var(--emerald); color: #052e1f; border: none; border-radius: 6px;
+            font-size: 0.68rem; font-weight: 700; padding: 6px 0; cursor: pointer;
+            font-family: inherit;
+        }
+        .flip-btn:active { transform: scale(0.93); }
+        .flip-btn.kep {
+            grid-column: span 3; background: #fbbf24; font-size: 0.72rem; padding: 7px 0;
+        }
 
         h3 { font-size: 1rem; color: var(--text-dim); margin: 22px 0 8px; }
 
@@ -169,6 +205,7 @@
             .team-name { font-size: 0.82rem; }
             .btn { padding: 11px 16px; font-size: 0.88rem; }
             .draft-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .flip-card { width: 92px; height: 112px; }
         }
     </style>
 </head>
@@ -190,22 +227,23 @@
         </div>
 
         <div id="step-2" class="step hidden">
-            <h2>Крок 2: Драфт</h2>
+            <h2>Крок 2: Жеребкування</h2>
+
+            <h3 style="margin-top:0;">Гравці</h3>
+            <p style="margin-top:-4px;">Тапни на гравця — картка перевернеться, обери куди відправити.</p>
+            <div id="players-list" class="tiles-zone"></div>
+
+            <h3>Команди</h3>
             <div id="teams-row" class="teams-row"></div>
-            <div style="text-align:center; margin-bottom:18px;">
+            <div style="text-align:center; margin-bottom:8px;">
                 <button id="toggle-will-btn" class="btn btn-ghost btn-sm" onclick="toggleWillTeam()">+ Додати команду Воля</button>
             </div>
 
-            <div id="basket-selector" style="margin: 20px 0;">
-                <p style="margin-bottom:8px;">Обери кількість кошиків:</p>
+            <h3>Кошики</h3>
+            <div id="basket-selector" style="margin-bottom: 14px;">
                 <div id="basket-buttons"></div>
             </div>
-
-            <div id="draft-ui">
-                <div id="draft-grid" class="draft-grid"></div>
-                <h3>Без кошика</h3>
-                <div id="players-list" class="basket"></div>
-            </div>
+            <div id="draft-grid" class="draft-grid"></div>
         </div>
     </div>
 
@@ -218,6 +256,8 @@
             { key: 'character', name: 'X-Character (Характер)', img: 'assets/character.png' }
         ];
         const willTeam = { key: 'will', name: 'Воля', img: 'assets/will.png' };
+
+        let basketsCount = 3;
 
         let ocrWorkerPromise = null;
         function getWorker() {
@@ -292,7 +332,7 @@
                 renderPlayers(allNames);
                 switchStep('step-1', 'step-2');
                 renderTeams();
-                renderBasketButtons();
+                startDraft(3);
             } catch (err) {
                 setStatus('Помилка розпізнавання: ' + (err.message || err), false);
                 btn.disabled = false;
@@ -321,19 +361,9 @@
             div.innerHTML = `
                 <div class="team-name">${name}</div>
                 <div class="team-logo" style="background-image:url('${img}')"></div>
+                <div class="captain-badge">C</div>
                 <div class="captain-slot" data-team="${name}"></div>`;
             row.appendChild(div);
-            const slot = div.querySelector('.captain-slot');
-            new Sortable(slot, {
-                group: 'shared',
-                onAdd: (evt) => {
-                    // тільки один капітан на слот — хто був раніше, повертається в загальний список
-                    if (slot.children.length > 1) {
-                        const extra = slot.children[0] === evt.item ? slot.children[1] : slot.children[0];
-                        document.getElementById('players-list').appendChild(extra);
-                    }
-                }
-            });
         }
 
         function renderBasketButtons() {
@@ -341,7 +371,7 @@
             container.innerHTML = '';
             for (let i = 2; i <= 8; i++) {
                 const b = document.createElement('button');
-                b.className = 'btn btn-sm';
+                b.className = 'btn btn-sm' + (i === basketsCount ? '' : ' btn-ghost');
                 b.innerText = i;
                 b.onclick = () => startDraft(i);
                 container.appendChild(b);
@@ -349,21 +379,42 @@
         }
 
         function startDraft(count) {
+            basketsCount = count;
             const grid = document.getElementById('draft-grid');
+            const pool = document.getElementById('players-list');
+
+            // зберігаємо картки, які вже лежать по кошиках, щоб не загубити при перебудові
+            const existingByBasket = {};
+            grid.querySelectorAll('.column-basket').forEach(col => {
+                existingByBasket[col.dataset.basket] = [...col.querySelectorAll('.flip-card')];
+            });
+
             grid.innerHTML = '';
-            for (let i = 0; i < count; i++) {
+            for (let i = 1; i <= count; i++) {
                 const col = document.createElement('div');
                 col.className = 'column-basket';
-                col.innerHTML = `<h4>Кошик ${i + 1}</h4>`;
+                col.dataset.basket = i;
+                col.innerHTML = `<h4>Кошик ${i}</h4><div class="basket-tiles tiles-zone"></div>`;
                 grid.appendChild(col);
-                new Sortable(col, { group: 'shared' });
+                if (existingByBasket[i]) {
+                    const wrap = col.querySelector('.basket-tiles');
+                    existingByBasket[i].forEach(tile => wrap.appendChild(tile));
+                }
             }
+            // кошики, які випали за межі нового count — гравці повертаються в загальний список
+            Object.keys(existingByBasket).forEach(idx => {
+                if (Number(idx) > count) existingByBasket[idx].forEach(tile => pool.appendChild(tile));
+            });
+
+            renderBasketButtons();
         }
 
         function toggleWillTeam() {
             const btn = document.getElementById('toggle-will-btn');
             let will = document.querySelector('[data-name="' + willTeam.name + '"]');
             if (will) {
+                const slot = will.querySelector('.captain-slot');
+                if (slot.children.length) document.getElementById('players-list').appendChild(slot.children[0]);
                 will.remove();
                 btn.innerText = "+ Додати команду Воля";
             } else {
@@ -372,16 +423,66 @@
             }
         }
 
+        // ---- флип-картки: тап на гравця перевертає картку, на звороті — кнопки призначення ----
         function renderPlayers(names) {
             const list = document.getElementById('players-list');
             list.innerHTML = '';
-            names.forEach(n => {
-                const d = document.createElement('div');
-                d.className = 'player-card';
-                d.innerText = n;
-                list.appendChild(d);
+            names.forEach(n => list.appendChild(makeFlipCard(n)));
+        }
+
+        function makeFlipCard(name) {
+            const card = document.createElement('div');
+            card.className = 'flip-card';
+            card.dataset.name = name;
+            card.innerHTML = `
+                <div class="flip-inner">
+                    <div class="flip-front">${name}</div>
+                    <div class="flip-back"><span class="back-close">✕</span></div>
+                </div>`;
+            const front = card.querySelector('.flip-front');
+            const back = card.querySelector('.flip-back');
+            front.addEventListener('click', () => openFlip(card, back));
+            back.querySelector('.back-close').addEventListener('click', (e) => {
+                e.stopPropagation();
+                card.classList.remove('flipped');
             });
-            new Sortable(list, { group: 'shared' });
+            return card;
+        }
+
+        function openFlip(card, back) {
+            back.querySelectorAll('.flip-btn-grid').forEach(el => el.remove());
+            const grid = document.createElement('div');
+            grid.className = 'flip-btn-grid';
+
+            const kepBtn = document.createElement('button');
+            kepBtn.className = 'flip-btn kep';
+            kepBtn.innerText = 'КЕП';
+            kepBtn.onclick = (e) => { e.stopPropagation(); assignCaptain(card); };
+            grid.appendChild(kepBtn);
+
+            for (let i = 1; i <= basketsCount; i++) {
+                const b = document.createElement('button');
+                b.className = 'flip-btn';
+                b.innerText = 'К' + i;
+                b.onclick = (e) => { e.stopPropagation(); assignBasket(card, i); };
+                grid.appendChild(b);
+            }
+            back.appendChild(grid);
+            card.classList.add('flipped');
+        }
+
+        function assignCaptain(card) {
+            // перше вільне місце капітана по порядку команд (не завжди перша команда)
+            const slots = [...document.querySelectorAll('.captain-slot')];
+            const target = slots.find(s => s.children.length === 0);
+            if (target) target.appendChild(card);
+            card.classList.remove('flipped');
+        }
+
+        function assignBasket(card, i) {
+            const wrap = document.querySelector(`.column-basket[data-basket="${i}"] .basket-tiles`);
+            if (wrap) wrap.appendChild(card);
+            card.classList.remove('flipped');
         }
     </script>
 </body>
