@@ -16,7 +16,11 @@
         .btn { padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; color: white; }
         .btn-primary { background: var(--primary); }
         .btn-danger { background: var(--danger); }
+        .btn-accent { background: var(--accent); }
         .btn-group { display: flex; gap: 8px; margin: 15px 0; flex-wrap: wrap; }
+        
+        #progress-container { width: 100%; background: #e2e8f0; height: 10px; border-radius: 5px; margin: 15px 0; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s; }
         
         .teams-row { display: flex; gap: 20px; margin-bottom: 30px; justify-content: center; }
         .team-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -34,11 +38,18 @@
     <div class="wrapper">
         <!-- Крок 1 -->
         <div id="step-1" class="step">
-            <h2>Крок 1: Завантаження</h2>
+            <h2>Крок 1: Завантаження результатів</h2>
+            <p>Завантаж скрін опитування, обріж тільки імена гравців. Додавай стільки скрінів, скільки потрібно.</p>
             <input type="file" id="file-input" accept="image/*" class="hidden">
             <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Завантажити скрін</button>
-            <div id="croppers-grid"></div>
-            <button id="process-btn" class="btn btn-primary hidden" style="margin-top:20px; background:var(--accent);">Розпізнати гравців</button>
+            <div id="croppers-grid" style="margin-top:20px;"></div>
+            
+            <div id="progress-container" class="hidden"><div id="progress-bar"></div></div>
+            
+            <div style="margin-top:20px;">
+                <button id="add-screen-btn" class="btn btn-primary hidden" onclick="document.getElementById('file-input').click()">+ Ще скрін</button>
+                <button id="process-btn" class="btn btn-accent hidden">Розпізнати гравців</button>
+            </div>
         </div>
 
         <!-- Крок 2 -->
@@ -52,7 +63,7 @@
             <div class="btn-group" id="basket-buttons"></div>
             <div id="baskets-grid" class="baskets-grid"></div>
             
-            <h3>Гравці</h3>
+            <h3>Список гравців</h3>
             <div id="players-list" class="basket" style="min-height: 50px;"></div>
         </div>
     </div>
@@ -66,22 +77,28 @@
             { name: 'X-Character', img: 'assets/character.png' }
         ];
 
-        // Логіка Кроку 1
         document.getElementById('file-input').addEventListener('change', (e) => {
+            const div = document.createElement('div');
+            div.style.marginBottom = '20px';
             const img = document.createElement('img');
             img.src = URL.createObjectURL(e.target.files[0]);
-            document.getElementById('croppers-grid').appendChild(img);
+            div.appendChild(img);
+            document.getElementById('croppers-grid').appendChild(div);
             croppers.push(new Cropper(img, { viewMode: 1 }));
+            document.getElementById('add-screen-btn').classList.remove('hidden');
             document.getElementById('process-btn').classList.remove('hidden');
         });
 
         document.getElementById('process-btn').addEventListener('click', async () => {
+            document.getElementById('progress-container').classList.remove('hidden');
+            const bar = document.getElementById('progress-bar');
             let allNames = [];
-            for (let c of croppers) {
+            for (let i = 0; i < croppers.length; i++) {
                 const worker = await Tesseract.createWorker('ukr+eng');
-                const { data: { text } } = await worker.recognize(c.getCroppedCanvas());
+                const { data: { text } } = await worker.recognize(croppers[i].getCroppedCanvas());
                 await worker.terminate();
                 allNames.push(...text.split('\n').filter(n => n.trim().length > 2));
+                bar.style.width = ((i + 1) / croppers.length) * 100 + '%';
             }
             renderPlayers(allNames);
             document.getElementById('step-1').classList.add('hidden');
@@ -90,7 +107,6 @@
             createBasketButtons();
         });
 
-        // Логіка Кроку 2
         function renderTeams() {
             const row = document.getElementById('teams-row');
             row.innerHTML = '';
@@ -113,7 +129,6 @@
         function toggleWillTeam() {
             const btn = document.getElementById('toggle-will-btn');
             const existingWill = document.querySelector('[data-team="WILL"]');
-            
             if (existingWill) {
                 existingWill.parentElement.remove();
                 btn.innerText = "+ Додати команду 4";
