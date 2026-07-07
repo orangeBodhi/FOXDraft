@@ -7,38 +7,48 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        :root { --bg-grass: #eefaf3; --primary: #2563eb; --accent: #22c55e; --text: #1e293b; }
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background-color: var(--bg-grass); color: var(--text); margin: 0; min-height: 100vh; }
-        .wrapper { max-width: 800px; margin: 0 auto; }
-        .step { background: rgba(255, 255, 255, 0.8); padding: 24px; border-radius: 16px; margin-bottom: 20px; }
+        :root { --bg-grass: #eefaf3; --primary: #2563eb; --secondary: #64748b; --accent: #22c55e; --text: #1e293b; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background-color: var(--bg-grass); color: var(--text); margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        .wrapper { width: 100%; max-width: 600px; }
+        .logo-main { width: 100%; max-width: 300px; display: block; margin: 0 auto 20px; }
+        .step { background: rgba(255, 255, 255, 0.8); padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; margin-bottom: 20px; }
         .hidden { display: none !important; }
+        h2 { font-size: 1.25rem; margin-bottom: 10px; }
+        p { color: #475569; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.5; }
+        .upload-btn { display: block; padding: 18px; background: var(--primary); color: white; text-align: center; cursor: pointer; border-radius: 12px; font-weight: 500; }
         
-        /* Прогрес бар */
+        #croppers-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; width: 100%; }
+        .cropper-item { background: #cbd5e1; border-radius: 8px; overflow: hidden; width: 100%; min-height: 200px; }
+        
         #progress-container { width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; margin: 10px 0; overflow: hidden; }
         #progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s; }
 
-        /* Крок 2 - Драфт */
+        .actions { margin-top: 20px; display: flex; gap: 12px; }
+        .btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; color: white; }
+        .btn-add { background-color: var(--secondary); }
+        .btn-process { background-color: var(--accent); }
+
         .teams-header { display: flex; gap: 10px; margin-bottom: 20px; }
-        .team-slot { flex: 1; height: 120px; border: 2px dashed #cbd5e1; border-radius: 12px; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; font-weight: bold; }
-        
+        .team-slot { flex: 1; height: 120px; border: 2px dashed #cbd5e1; border-radius: 12px; display: flex; align-items: center; justify-content: center; background-size: contain; background-repeat: no-repeat; background-position: center; font-weight: bold; }
         .baskets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .basket { background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 100px; }
-        
-        .player-card { background: white; padding: 10px; margin: 5px 0; border-radius: 6px; cursor: move; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .player-card { background: white; padding: 10px; margin: 5px 0; border-radius: 6px; cursor: move; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
     <div class="wrapper">
+        <img src="assets/site-logo.png" alt="Fox League" class="logo-main">
+
         <div id="step-1" class="step">
             <h2>Крок 1: завантаження результатів опитування.</h2>
             <p>Завантаж скрін опитування з Telegram і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо - тільки імена гравців! це обов'язково!). Якщо потрібно декілька скрінів - натисни кнопку "+Ще скрін" і обріж його так само.<br>Після цього тисни "Розпізнати" - створиться перелік всіх гравців у вигляді карточок.</p>
-            <label for="file-input" class="upload-btn" style="cursor:pointer; background:var(--primary); color:white; padding:15px; border-radius:10px; display:block; text-align:center;">натисни тут щоб загрузити скрін</label>
+            <label for="file-input" class="upload-btn">натисни тут щоб загрузити скрін</label>
             <input type="file" id="file-input" accept="image/*" class="hidden">
-            <div id="croppers-grid" style="display:flex; flex-direction:column; gap:20px; margin-top:20px;"></div>
+            <div id="croppers-grid"></div>
             <div id="progress-container" class="hidden"><div id="progress-bar"></div></div>
-            <div class="actions" style="margin-top:20px; display:flex; gap:10px;">
-                <button id="add-screen-btn" class="hidden"> +Ще скрін </button>
-                <button id="process-btn" class="hidden"> Розпізнати </button>
+            <div class="actions">
+                <button id="add-screen-btn" class="btn btn-add hidden">+Ще скрін</button>
+                <button id="process-btn" class="btn btn-process hidden">Розпізнати</button>
             </div>
         </div>
 
@@ -51,14 +61,12 @@
                 <div class="team-slot" style="background-image:url('assets/character.png')">X-Character</div>
                 <button>додати команду 4</button>
             </div>
-            
             <label>Виберіть кількість кошиків:</label>
             <select id="basket-count" onchange="createBaskets()">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option>
                 <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
             </select>
             <div id="baskets-grid" class="baskets-grid"></div>
-
             <h3>ГРАВЦІ</h3>
             <div id="players-list"></div>
         </div>
@@ -66,27 +74,41 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script>
-        // Ініціалізація змінних
+        const input = document.getElementById('file-input');
         const grid = document.getElementById('croppers-grid');
+        const addBtn = document.getElementById('add-screen-btn');
         const processBtn = document.getElementById('process-btn');
         let croppers = [];
 
-        // Логіка розпізнавання з прогрес-баром
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const div = document.createElement('div');
+            div.className = 'cropper-item';
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            div.appendChild(img);
+            grid.appendChild(div);
+            const cropper = new Cropper(img, { viewMode: 1, autoCropArea: 0.8 });
+            croppers.push(cropper);
+            addBtn.classList.remove('hidden');
+            processBtn.classList.remove('hidden');
+        });
+
+        addBtn.addEventListener('click', () => input.click());
+
         processBtn.addEventListener('click', async () => {
             document.getElementById('progress-container').classList.remove('hidden');
             const bar = document.getElementById('progress-bar');
-            
             let allNames = [];
             for (let i = 0; i < croppers.length; i++) {
                 const canvas = croppers[i].getCroppedCanvas();
                 const worker = await Tesseract.createWorker('ukr+eng');
                 const { data: { text } } = await worker.recognize(canvas);
                 await worker.terminate();
-                
                 allNames.push(...text.split('\n').filter(l => l.trim().length > 2));
                 bar.style.width = ((i + 1) / croppers.length) * 100 + '%';
             }
-            
             renderPlayers(allNames);
             document.getElementById('step-1').classList.add('hidden');
             document.getElementById('step-2').classList.remove('hidden');
