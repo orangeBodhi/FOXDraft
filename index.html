@@ -7,19 +7,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <style>
         :root {
+            /* Пастельний смарагдовий фон */
+            --bg-grass: #eefaf3; 
             --primary: #2563eb;
             --secondary: #64748b;
             --accent: #22c55e;
-            --bg: #f8fafc;
             --text: #1e293b;
         }
 
         body { 
             font-family: 'Segoe UI', system-ui, sans-serif; 
             padding: 20px; 
-            background: var(--bg); 
+            /* Застосовуємо фон наскрізь */
+            background-color: var(--bg-grass); 
+            background-image: radial-gradient(circle at 50% 50%, rgba(200, 230, 201, 0.3) 0%, transparent 70%);
             color: var(--text);
             margin: 0; 
+            min-height: 100vh;
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -27,55 +31,50 @@
         
         .wrapper { width: 100%; max-width: 600px; }
         
-        /* Тепер використовуємо локальний логотип */
         .logo-main { width: 100%; max-width: 300px; display: block; margin: 0 auto 20px; }
         
         .step { 
-            background: white; 
+            background: rgba(255, 255, 255, 0.8); /* Легка прозорість для ефекту скляності */
+            backdrop-filter: blur(10px);
             padding: 24px; 
             border-radius: 16px; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); 
             width: 100%; 
             box-sizing: border-box; 
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
         
         h2 { margin-top: 0; font-size: 1.25rem; color: var(--text); margin-bottom: 20px; }
 
         .upload-btn { 
             display: block; 
-            padding: 20px; 
+            padding: 18px; 
             background: var(--primary); 
             color: white; 
             text-align: center; 
             cursor: pointer; 
             border-radius: 12px; 
-            font-weight: 600;
-            transition: transform 0.1s, background 0.2s;
+            font-weight: 500;
+            transition: all 0.2s;
         }
         
-        .upload-btn:active { transform: scale(0.98); }
+        .upload-btn:hover { background: #1d4ed8; }
         
         #cropper-container { 
             margin-top: 20px; 
             border-radius: 8px; 
             overflow: hidden; 
-            background: #e2e8f0;
-            min-height: 200px;
+            background: #cbd5e1;
         }
 
-        .actions { 
-            margin-top: 20px; 
-            display: flex; 
-            gap: 12px; 
-        }
+        .actions { margin-top: 20px; display: flex; gap: 12px; }
 
         .btn { 
             flex: 1;
-            padding: 16px;
+            padding: 14px;
             border: none;
             border-radius: 12px;
             font-weight: 600;
-            font-size: 1rem;
             cursor: pointer;
             transition: all 0.2s;
             color: white;
@@ -91,19 +90,18 @@
 <body>
 
     <div class="wrapper">
-        <!-- Оновлений шлях до лого -->
         <img src="assets/site-logo.png" alt="Fox League" class="logo-main">
 
         <div id="step-1" class="step">
-            <h2>Крок 1: Завантаження результатів опитування</h2>
-            <label for="file-input" class="upload-btn">Натисни ТУТ щоб загрузити скрін</label>
+            <h2>крок 1: завантаження результатів опитування</h2>
+            <label for="file-input" class="upload-btn">натисни тут щоб загрузити скрін</label>
             <input type="file" id="file-input" accept="image/*" class="hidden">
             
             <div id="cropper-container"></div>
             
             <div class="actions">
-                <button id="add-screen-btn" class="btn btn-add hidden">+ЩЕ СКРІН</button>
-                <button id="process-btn" class="btn btn-process hidden">РОЗПІЗНАТИ</button>
+                <button id="add-screen-btn" class="btn btn-add hidden">+ще скрін</button>
+                <button id="process-btn" class="btn btn-process hidden">розпізнати</button>
             </div>
         </div>
     </div>
@@ -123,12 +121,7 @@
             container.innerHTML = '';
             container.appendChild(img);
             
-            cropper = new Cropper(img, {
-                viewMode: 1,
-                dragMode: 'crop',
-                autoCropArea: 0.8,
-                responsive: true
-            });
+            cropper = new Cropper(img, { viewMode: 1, autoCropArea: 0.8 });
             document.getElementById('add-screen-btn').classList.remove('hidden');
             document.getElementById('process-btn').classList.remove('hidden');
         });
