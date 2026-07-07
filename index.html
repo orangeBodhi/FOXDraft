@@ -31,7 +31,7 @@
 
         .main-logo { text-align: center; margin-bottom: 24px; }
         .main-logo img {
-            max-width: 280px; width: 100%; height: auto;
+            width: 100%; height: auto; max-width: none;
             border-radius: 14px;
             object-fit: contain;
         }
@@ -56,6 +56,7 @@
         }
         .step h2 { font-size: 1.3rem; margin-top: 0; }
         .step p { color: var(--text-dim); line-height: 1.55; font-size: 0.95rem; }
+        .step { text-align: center; }
 
         /* Кнопки — сучасні, з тап-ефектом */
         .btn {
@@ -91,9 +92,17 @@
         }
         #croppers-grid img { max-width: 100%; display: block; }
 
+        /* Прибираємо діагональні кутові хендли — тільки осьові (n/s/e/w) */
+        .cropper-point.point-nw,
+        .cropper-point.point-ne,
+        .cropper-point.point-sw,
+        .cropper-point.point-se {
+            display: none !important;
+        }
+
         .status-line {
             font-size: 0.85rem; color: var(--text-dim); margin-top: 10px;
-            display: flex; align-items: center; gap: 8px; min-height: 20px;
+            display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 20px;
         }
         .spinner {
             width: 16px; height: 16px; border: 2px solid rgba(52,211,153,0.25);
@@ -140,7 +149,7 @@
             content: 'Капітан'; color: #475569; font-size: 0.78rem; font-style: italic;
         }
 
-        #basket-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+        #basket-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 
         .draft-grid {
             display: grid;
@@ -153,7 +162,7 @@
         }
         .column-basket h4 { margin: 0 0 8px; font-size: 0.9rem; color: var(--emerald); }
 
-        .tiles-zone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 20px; }
+        .tiles-zone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 20px; justify-content: center; }
 
         /* ---- флип-картки гравців ---- */
         .flip-card { width: 108px; height: 124px; perspective: 900px; }
@@ -199,7 +208,7 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .step { padding: 16px; border-radius: 14px; }
-            .main-logo img { max-width: 200px; }
+            .main-logo img { width: 100%; }
             .team-container { width: 104px; padding: 10px 8px 8px; }
             .team-logo { width: 64px; height: 64px; }
             .team-name { font-size: 0.82rem; }
@@ -216,7 +225,7 @@
         </div>
 
         <div id="step-1" class="step">
-            <h2>Крок 1: Завантаження результатів</h2>
+            <h2>Крок 1: Завантаження результатів опитування</h2>
             <p>Завантаж скрін опитування з Telegram і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо — тільки імена гравців! це обов'язково!). Якщо потрібно декілька скрінів — натисни кнопку "+Ще скрін" і обріж його так само.<br>Після цього тисни "Розпізнати" — створиться перелік всіх гравців у вигляді карточок.</p>
             <input type="file" id="file-input" accept="image/*" class="hidden-input">
             <button class="btn" onclick="document.getElementById('file-input').click()">Завантажити скрін</button>
@@ -236,7 +245,7 @@
             <h3>Команди</h3>
             <div id="teams-row" class="teams-row"></div>
             <div style="text-align:center; margin-bottom:8px;">
-                <button id="toggle-will-btn" class="btn btn-ghost btn-sm" onclick="toggleWillTeam()">+ Додати команду Воля</button>
+                <button id="toggle-will-btn" class="btn btn-ghost btn-sm" onclick="toggleWillTeam()">+ Додати команду 4</button>
             </div>
 
             <h3>Кошики</h3>
@@ -416,10 +425,10 @@
                 const slot = will.querySelector('.captain-slot');
                 if (slot.children.length) document.getElementById('players-list').appendChild(slot.children[0]);
                 will.remove();
-                btn.innerText = "+ Додати команду Воля";
+                btn.innerText = "+ Додати команду 4";
             } else {
                 createTeamUI(willTeam.name, willTeam.img);
-                btn.innerText = "− Прибрати команду Воля";
+                btn.innerText = "− Прибрати команду 4";
             }
         }
 
