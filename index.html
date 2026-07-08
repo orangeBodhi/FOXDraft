@@ -235,6 +235,31 @@
 
         h3 { font-size: 1rem; color: var(--text-dim); margin: 22px 0 8px; }
 
+        .result-btn {
+            padding: 12px 20px; border-radius: 12px; border: 1.5px solid #334155;
+            background: var(--card-bg-2); color: var(--text); font-weight: 700; font-size: 0.9rem;
+            font-family: inherit; cursor: pointer; min-width: 100px;
+            transition: transform .15s ease, background .2s ease, box-shadow .2s ease;
+        }
+        .result-btn:active { transform: scale(0.95); }
+        .result-btn.dimmed { opacity: 0.3; }
+        .result-btn.lit-red {
+            background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; border-color: #ef4444;
+            animation: flame-glow-red 1s ease-in-out infinite;
+        }
+        .result-btn.lit-blue {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; border-color: #3b82f6;
+            animation: flame-glow-blue 1s ease-in-out infinite;
+        }
+        @keyframes flame-glow-red {
+            0%, 100% { box-shadow: 0 0 10px 2px rgba(239,68,68,0.55), 0 0 22px 6px rgba(239,68,68,0.25); }
+            50% { box-shadow: 0 0 18px 5px rgba(239,68,68,0.9), 0 0 34px 12px rgba(239,68,68,0.5); }
+        }
+        @keyframes flame-glow-blue {
+            0%, 100% { box-shadow: 0 0 10px 2px rgba(59,130,246,0.55), 0 0 22px 6px rgba(59,130,246,0.25); }
+            50% { box-shadow: 0 0 18px 5px rgba(59,130,246,0.9), 0 0 34px 12px rgba(59,130,246,0.5); }
+        }
+
         #review-list { max-width: 420px; margin: 18px auto; text-align: left; }
         .review-row {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -336,6 +361,31 @@
                 <button id="play-btn" class="btn hidden" onclick="startPlay()">PLAY</button>
             </div>
         </div>
+
+        <div id="step-4" class="step hidden">
+            <p>кнопка ЖЕРЕБ<br>Киньте жереб, щоб з'ясувати:<br>які перші дві команди грають між собою</p>
+            <button id="jereb-btn" class="btn" onclick="rollFirstMatch()">ЖЕРЕБ</button>
+
+            <h3 id="match-title" class="hidden" style="margin-top:20px;"></h3>
+
+            <div id="match-pairing" class="hidden" style="display:flex; align-items:center; justify-content:center; gap:16px; margin:16px 0; flex-wrap:wrap;">
+                <div id="team-box-a" class="team-container" style="width:130px;"></div>
+                <div style="font-weight:700; color:var(--text-dim);">проти</div>
+                <div id="team-box-b" class="team-container" style="width:130px;"></div>
+            </div>
+
+            <div id="result-buttons" class="hidden" style="display:flex; justify-content:center; gap:10px; margin:16px 0; flex-wrap:wrap;">
+                <button class="result-btn" id="win-a-btn" onclick="pickResult('winA')">Перемога</button>
+                <button class="result-btn" id="draw-btn" onclick="pickResult('draw')">Нічия</button>
+                <button class="result-btn" id="win-b-btn" onclick="pickResult('winB')">Перемога</button>
+            </div>
+
+            <p id="confirm-hint" class="hidden">Перевірте чи результат вірний декілька разів!<br>Після цього натисніть "ЗАТВЕРДЖУЮ!"</p>
+            <button id="confirm-btn" class="btn hidden" onclick="confirmMatchResult()">ЗАТВЕРДЖУЮ!</button>
+
+            <h3 id="table-title" class="hidden" style="margin-top:30px;">Турнірна таблиця</h3>
+            <div id="standings" class="teams-row hidden"></div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
@@ -385,7 +435,12 @@
             teamsCount: 0,
             basketsCount: 0,
             captains: {},
-            assignments: {}
+            assignments: {},
+            rollOrder: null,
+            onHill: null,
+            matchQueue: [],
+            matchNumber: 0,
+            stats: {}
         };
 
         let saveTimeout = null;
@@ -422,7 +477,9 @@
                 }
                 await window.fbSetDoc(ref, {
                     matchId: id, step: 'step-1', players: [], teamsCount: 0, basketsCount: 0,
-                    captains: {}, assignments: {}, rollOrder: null, createdAt: Date.now()
+                    captains: {}, assignments: {}, rollOrder: null,
+                    onHill: null, matchQueue: [], matchNumber: 0, stats: {},
+                    createdAt: Date.now()
                 });
                 location.href = location.pathname + '?id=' + id;
             } catch (err) {
@@ -489,7 +546,8 @@
                 return;
             }
 
-            if (appState.step === 'step-3') {
+            if (appState.step === 'step-3' || appState.step === 'step-4') {
+                const savedStep = appState.step;
                 goToDraftStep3();
                 Object.keys(appState.assignments || {}).forEach(name => {
                     const val = appState.assignments[name];
@@ -510,7 +568,18 @@
                     document.getElementById('roll-btn').classList.add('hidden');
                 }
                 checkDraftComplete();
-                switchStep('step-landing', 'step-3');
+
+                if (savedStep === 'step-4') {
+                    appState.step = 'step-4';
+                    switchStep('step-landing', 'step-4');
+                    if (appState.matchNumber > 0 && appState.onHill) {
+                        document.getElementById('jereb-btn').classList.add('hidden');
+                        renderMatchUI();
+                        if (appState.matchNumber > 1) renderStandings();
+                    }
+                } else {
+                    switchStep('step-landing', 'step-3');
+                }
             }
         }
 
@@ -600,6 +669,7 @@
             const to = document.getElementById(toId);
             from.classList.add('hidden');
             to.classList.remove('hidden');
+            window.scrollTo(0, 0);
         }
 
         // ---- Крок 1b: перевірка та правка розпізнаних імен ----
@@ -923,8 +993,141 @@
         }
 
         function startPlay() {
-            // TODO: наступний крок (матч-день) ще не описаний — тимчасова заглушка
-            alert('Наступний крок (гра) ще не реалізований.');
+            switchStep('step-3', 'step-4');
+            appState.step = 'step-4';
+            saveState();
+        }
+
+        // ---- Крок 4: Матчі (царь гори) ----
+        let pendingResult = null;
+
+        function teamBoxHTML(key) {
+            const t = TEAM_DEFS.find(td => td.key === key);
+            return `<div class="team-name">${t.name}</div><div class="team-logo" style="background-image:url('${t.img}')"></div>`;
+        }
+
+        function rollFirstMatch() {
+            const activeKeys = TEAM_DEFS.slice(0, teamsCount).map(t => t.key);
+            const shuffled = [...activeKeys];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            appState.onHill = [shuffled[0], shuffled[1]];
+            appState.matchQueue = shuffled.slice(2);
+            appState.matchNumber = 1;
+            appState.stats = {};
+            activeKeys.forEach(k => appState.stats[k] = { matches: 0, wins: 0, losses: 0, draws: 0, points: 0 });
+
+            document.getElementById('jereb-btn').classList.add('hidden');
+            renderMatchUI();
+            saveState();
+        }
+
+        function renderMatchUI() {
+            document.getElementById('match-title').innerText = 'Матч ' + appState.matchNumber;
+            document.getElementById('match-title').classList.remove('hidden');
+            document.getElementById('match-pairing').classList.remove('hidden');
+            document.getElementById('result-buttons').classList.remove('hidden');
+
+            const [aKey, bKey] = appState.onHill;
+            document.getElementById('team-box-a').innerHTML = teamBoxHTML(aKey);
+            document.getElementById('team-box-b').innerHTML = teamBoxHTML(bKey);
+
+            pendingResult = null;
+            const winABtn = document.getElementById('win-a-btn');
+            const winBBtn = document.getElementById('win-b-btn');
+            const drawBtn = document.getElementById('draw-btn');
+            winABtn.innerText = 'Перемога';
+            winBBtn.innerText = 'Перемога';
+            drawBtn.innerText = 'Нічия';
+            [winABtn, winBBtn, drawBtn].forEach(b => b.classList.remove('lit-red', 'lit-blue', 'dimmed'));
+            if (appState.matchNumber === 1) {
+                drawBtn.classList.add('dimmed');
+            }
+
+            document.getElementById('confirm-hint').classList.add('hidden');
+            document.getElementById('confirm-btn').classList.add('hidden');
+        }
+
+        function pickResult(result) {
+            if (result === 'draw' && appState.matchNumber === 1) return; // нічия неможлива у першому матчі
+            pendingResult = result;
+            const winABtn = document.getElementById('win-a-btn');
+            const winBBtn = document.getElementById('win-b-btn');
+            const drawBtn = document.getElementById('draw-btn');
+            [winABtn, winBBtn, drawBtn].forEach(b => {
+                b.classList.remove('lit-red', 'lit-blue', 'dimmed');
+                b.innerText = b === drawBtn ? 'Нічия' : 'Перемога';
+            });
+
+            if (result === 'winA') {
+                winABtn.classList.add('lit-red'); winABtn.innerText = '🔥 Перемога';
+                winBBtn.classList.add('dimmed');
+                if (appState.matchNumber === 1) drawBtn.classList.add('dimmed');
+            } else if (result === 'winB') {
+                winBBtn.classList.add('lit-red'); winBBtn.innerText = '🔥 Перемога';
+                winABtn.classList.add('dimmed');
+                if (appState.matchNumber === 1) drawBtn.classList.add('dimmed');
+            } else if (result === 'draw') {
+                drawBtn.classList.add('lit-blue'); drawBtn.innerText = '🔥 Нічия';
+                winABtn.classList.add('dimmed'); winBBtn.classList.add('dimmed');
+            }
+
+            document.getElementById('confirm-hint').classList.remove('hidden');
+            document.getElementById('confirm-btn').classList.remove('hidden');
+        }
+
+        function confirmMatchResult() {
+            if (!pendingResult) return;
+            const [aKey, bKey] = appState.onHill;
+            const stats = appState.stats;
+            stats[aKey].matches++; stats[bKey].matches++;
+
+            if (pendingResult === 'draw') {
+                stats[aKey].draws++; stats[bKey].draws++;
+                stats[aKey].points += 1; stats[bKey].points += 1;
+                // чемпіон (aKey) йде в чергу, претендент (bKey) залишається як новий чемпіон
+                appState.matchQueue.push(aKey);
+                const nextChallenger = appState.matchQueue.shift();
+                appState.onHill = [bKey, nextChallenger];
+            } else {
+                const winnerKey = pendingResult === 'winA' ? aKey : bKey;
+                const loserKey = pendingResult === 'winA' ? bKey : aKey;
+                stats[winnerKey].wins++; stats[winnerKey].points += 3;
+                stats[loserKey].losses++;
+                appState.matchQueue.push(loserKey);
+                const nextChallenger = appState.matchQueue.shift();
+                appState.onHill = [winnerKey, nextChallenger];
+            }
+
+            appState.matchNumber++;
+            renderMatchUI();
+            renderStandings();
+            saveState();
+        }
+
+        function renderStandings() {
+            const wrap = document.getElementById('standings');
+            wrap.innerHTML = '';
+            TEAM_DEFS.slice(0, teamsCount).forEach(t => {
+                const s = appState.stats[t.key] || { matches: 0, wins: 0, losses: 0, draws: 0, points: 0 };
+                const box = document.createElement('div');
+                box.className = 'team-container';
+                box.innerHTML = `
+                    <div class="team-name">${t.name}</div>
+                    <div class="team-logo" style="background-image:url('${t.img}')"></div>
+                    <div style="font-size:0.82rem; color:var(--text-dim); text-align:left; width:100%; line-height:1.5;">
+                        Матчів: ${s.matches}<br>
+                        Перемог: ${s.wins}<br>
+                        Поразок: ${s.losses}<br>
+                        Нічиїх: ${s.draws}<br>
+                        <b style="color:var(--text);">ОЧОК: ${s.points}</b>
+                    </div>`;
+                wrap.appendChild(box);
+            });
+            document.getElementById('table-title').classList.remove('hidden');
+            wrap.classList.remove('hidden');
         }
     </script>
 </body>
