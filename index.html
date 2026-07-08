@@ -193,6 +193,19 @@
             text-align: center; font-size: 0.82rem; font-weight: 600; cursor: pointer;
             word-break: break-word;
         }
+        .flip-front.is-captain {
+            background: linear-gradient(160deg, rgba(255,212,82,0.22), rgba(214,154,31,0.12)), #334155;
+            border: 2px solid #d69a1f;
+        }
+        .flip-front.is-captain::after {
+            content: 'C';
+            position: absolute; top: 4px; right: 4px;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: linear-gradient(160deg, #ffd452, #d69a1f);
+            border: 2px solid #1a1206; color: #1a1206; font-weight: 900; font-size: 0.65rem;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
         .flip-back {
             background: #16213a; transform: rotateY(180deg);
             display: flex; flex-direction: column;
@@ -205,6 +218,11 @@
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
             margin-top: 16px;
         }
+        .flip-btn-list {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 5px; margin-top: 8px; width: 100%; flex: 1;
+        }
+        .flip-btn-list .flip-btn { width: 100%; padding: 7px 0; }
         .flip-btn {
             background: var(--emerald); color: #052e1f; border: none; border-radius: 6px;
             font-size: 0.68rem; font-weight: 700; padding: 6px 0; cursor: pointer;
@@ -247,7 +265,21 @@
             <img src="assets/site-logo.png" alt="FOX Logo">
         </div>
 
-        <div id="step-1" class="step">
+        <div id="step-landing" class="step">
+            <h2>FOXDraft</h2>
+            <p id="landing-hint">Розпочни новий ігровий день, щоб продовжити.</p>
+            <button class="btn" onclick="showMatchdayForm()">Почати MATCHDAY</button>
+            <div id="matchday-form" class="hidden" style="margin-top:16px;">
+                <p>Введіть ID для сьогоднішнього ігрового дня — дата гри у форматі ДДММРР (наприклад: 080726).</p>
+                <input id="matchday-id-input" class="review-input" style="max-width:160px; text-align:center; display:inline-block;" maxlength="6" placeholder="080726">
+                <div style="margin-top:12px;">
+                    <button class="btn" onclick="createMatchday()">Створити</button>
+                </div>
+                <div id="matchday-error" class="hidden" style="color:var(--danger); margin-top:10px; font-size:0.9rem;"></div>
+            </div>
+        </div>
+
+        <div id="step-1" class="step hidden">
             <h2>Крок 1: Завантаження результатів опитування</h2>
             <p>Завантаж скрін опитування з Telegram (кнопка "Завантажити скрін") і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо — тільки імена гравців! це обов'язково! якщо в скріні прописане не повне ім'я гравця це не суттєво — головне розуміти хто є хто). Якщо потрібно декілька скрінів — натисни кнопку "+Ще скрін" і обріж його так само. Після цього тисни "Розпізнати гравців" — створиться перелік всіх гравців у вигляді карток.</p>
             <input type="file" id="file-input" accept="image/*" class="hidden-input">
@@ -292,17 +324,44 @@
         <div id="step-3" class="step hidden">
             <h2>Крок 3: Драфт</h2>
             <p>Натисніть кнопку жеребу щоб дізнатись порядок відбору гравців капітанами.</p>
-            <button class="btn" onclick="rollDraftOrder()">Кинути жереб</button>
+            <button id="roll-btn" class="btn" onclick="rollDraftOrder()">Кинути жереб</button>
 
             <p style="margin-top:18px;">Команди розташовані зліва-на-право в порядку вибору гравців.</p>
-            <div id="teams-row-3" class="teams-row"></div>
+            <div id="teams-row-3" class="teams-row hidden"></div>
 
-            <p style="margin-top:22px;">Капітани по черзі вибирають гравців з кошиків, для цього потрібно тапнути на гравця і вибрати йому відповідну команду (мають бути кнопки — Фортуна, Отамани, Характер, Воля — в залежності від того скільки команд вибрано).</p>
+            <p style="margin-top:22px;">Капітани по черзі вибирають гравців з кошиків. Для цього потрібно тапнути на гравця і вибрати йому відповідну команду.<br>Після драфту натискайте кнопку PLAY внизу.</p>
             <div id="draft-grid-3" class="draft-grid"></div>
+
+            <div style="text-align:center; margin-top:20px;">
+                <button id="play-btn" class="btn hidden" onclick="startPlay()">PLAY</button>
+            </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // ЗАМІНИ на свій firebaseConfig з Firebase Console (Project settings → General → Your apps)
+        const firebaseConfig = {
+            apiKey: "ВАШ_API_KEY",
+            authDomain: "ВАШ_ПРОЕКТ.firebaseapp.com",
+            projectId: "ВАШ_ПРОЕКТ",
+            storageBucket: "ВАШ_ПРОЕКТ.appspot.com",
+            messagingSenderId: "000000000000",
+            appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+        window.fbDoc = doc;
+        window.fbGetDoc = getDoc;
+        window.fbSetDoc = setDoc;
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
+
     <script>
         const croppers = [];
         const TEAM_DEFS = [
@@ -314,6 +373,148 @@
 
         let teamsCount = 0;
         let basketsCount = 0;
+
+        // ---- MATCHDAY: стан, що зберігається у Firestore ----
+        const urlParams = new URLSearchParams(location.search);
+        const matchId = urlParams.get('id');
+
+        let appState = {
+            matchId: matchId || null,
+            step: 'step-1',
+            players: [],
+            teamsCount: 0,
+            basketsCount: 0,
+            captains: {},
+            assignments: {}
+        };
+
+        let saveTimeout = null;
+        function saveState() {
+            if (!appState.matchId || !window.db) return;
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                window.fbSetDoc(window.fbDoc(window.db, 'matchdays', appState.matchId), appState).catch(err => {
+                    console.error('Помилка збереження:', err);
+                });
+            }, 600);
+        }
+
+        function showMatchdayForm() {
+            document.getElementById('matchday-form').classList.remove('hidden');
+        }
+
+        async function createMatchday() {
+            const id = document.getElementById('matchday-id-input').value.trim();
+            const errEl = document.getElementById('matchday-error');
+            errEl.classList.add('hidden');
+            if (!/^\d{6}$/.test(id)) {
+                errEl.innerText = 'ID має бути 6 цифр у форматі ДДММРР, наприклад 080726.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            try {
+                const ref = window.fbDoc(window.db, 'matchdays', id);
+                const snap = await window.fbGetDoc(ref);
+                if (snap.exists()) {
+                    errEl.innerText = 'Ігровий день з таким ID вже існує!';
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+                await window.fbSetDoc(ref, {
+                    matchId: id, step: 'step-1', players: [], teamsCount: 0, basketsCount: 0,
+                    captains: {}, assignments: {}, rollOrder: null, createdAt: Date.now()
+                });
+                location.href = location.pathname + '?id=' + id;
+            } catch (err) {
+                errEl.innerText = 'Помилка зʼєднання з базою: ' + (err.message || err);
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        function findCardByName(name) {
+            return document.querySelector(`.flip-card[data-name="${CSS.escape(name)}"]`);
+        }
+
+        async function initApp() {
+            if (!matchId) return; // лендінг вже показаний за замовчуванням
+            try {
+                const ref = window.fbDoc(window.db, 'matchdays', matchId);
+                const snap = await window.fbGetDoc(ref);
+                if (!snap.exists()) {
+                    document.getElementById('landing-hint').innerText = `Ігровий день з ID ${matchId} не знайдено.`;
+                    return;
+                }
+                appState = snap.data();
+                appState.matchId = matchId;
+                restoreUI();
+            } catch (err) {
+                document.getElementById('landing-hint').innerText = 'Помилка завантаження: ' + (err.message || err);
+            }
+        }
+
+        function restoreUI() {
+            renderPlayers(appState.players || []);
+            teamsCount = appState.teamsCount || 0;
+            basketsCount = appState.basketsCount || 0;
+
+            if (appState.step === 'step-1' || !appState.step) {
+                switchStep('step-landing', 'step-1');
+                return;
+            }
+
+            document.getElementById('teams-row').innerHTML = '';
+            TEAM_DEFS.slice(0, teamsCount).forEach(t => createTeamUI(t));
+            renderTeamCountButtons();
+            startDraft(basketsCount);
+
+            Object.keys(appState.captains || {}).forEach(key => {
+                const name = appState.captains[key];
+                if (!name) return;
+                const card = findCardByName(name);
+                const slot = document.querySelector(`#teams-row .team-container[data-key="${key}"] .captain-slot`);
+                if (card && slot) slot.appendChild(card);
+            });
+            Object.keys(appState.assignments || {}).forEach(name => {
+                const val = appState.assignments[name];
+                const card = findCardByName(name);
+                if (!card) return;
+                if (typeof val === 'number' && val > 0) {
+                    const wrap = document.querySelector(`#draft-grid .column-basket[data-basket="${val}"] .basket-tiles`);
+                    if (wrap) wrap.appendChild(card);
+                }
+            });
+
+            if (appState.step === 'step-2') {
+                switchStep('step-landing', 'step-2');
+                return;
+            }
+
+            if (appState.step === 'step-3') {
+                goToDraftStep3();
+                Object.keys(appState.assignments || {}).forEach(name => {
+                    const val = appState.assignments[name];
+                    if (typeof val === 'string' && val.startsWith('team:')) {
+                        const key = val.slice(5);
+                        const card = findCardByName(name);
+                        const roster = document.querySelector(`.team-roster[data-key="${key}"]`);
+                        if (card && roster) roster.appendChild(card);
+                    }
+                });
+                if (appState.rollOrder && appState.rollOrder.length) {
+                    const row = document.getElementById('teams-row-3');
+                    appState.rollOrder.forEach(key => {
+                        const box = row.querySelector(`.team-container[data-key="${key}"]`);
+                        if (box) row.appendChild(box);
+                    });
+                    row.classList.remove('hidden');
+                    document.getElementById('roll-btn').classList.add('hidden');
+                }
+                checkDraftComplete();
+                switchStep('step-landing', 'step-3');
+            }
+        }
+
+        window.addEventListener('firebase-ready', initApp);
 
         let ocrWorkerPromise = null;
         function getWorker() {
@@ -445,6 +646,9 @@
             switchStep('step-1b', 'step-2');
             renderTeamCountButtons();
             renderBasketButtons();
+            appState.players = recognizedNames;
+            appState.step = 'step-2';
+            saveState();
         }
 
         function renderTeamCountButtons() {
@@ -482,11 +686,15 @@
                     if (slot) slot.appendChild(existingCaptains[key]);
                 } else {
                     // команда зникла — капітан повертається у загальний список
+                    existingCaptains[key].querySelector('.flip-front').classList.remove('is-captain');
                     pool.appendChild(existingCaptains[key]);
+                    delete appState.captains[key];
                 }
             });
 
             renderTeamCountButtons();
+            appState.teamsCount = n;
+            saveState();
         }
 
         function createTeamUI(teamDef) {
@@ -539,10 +747,17 @@
             }
             // кошики, які випали за межі нового count — гравці повертаються в загальний список
             Object.keys(existingByBasket).forEach(idx => {
-                if (Number(idx) > count) existingByBasket[idx].forEach(tile => pool.appendChild(tile));
+                if (Number(idx) > count) {
+                    existingByBasket[idx].forEach(tile => {
+                        pool.appendChild(tile);
+                        appState.assignments[tile.dataset.name] = 0;
+                    });
+                }
             });
 
             renderBasketButtons();
+            appState.basketsCount = count;
+            saveState();
         }
 
         // ---- Крок 3: Драфт ----
@@ -580,6 +795,11 @@
             });
 
             switchStep('step-2', 'step-3');
+            document.getElementById('teams-row-3').classList.add('hidden');
+            document.getElementById('roll-btn').classList.remove('hidden');
+            checkDraftComplete();
+            appState.step = 'step-3';
+            saveState();
         }
 
         function rollDraftOrder() {
@@ -590,12 +810,21 @@
                 [boxes[i], boxes[j]] = [boxes[j], boxes[i]];
             }
             boxes.forEach(b => row.appendChild(b));
+            row.classList.remove('hidden');
+            document.getElementById('roll-btn').classList.add('hidden');
+            appState.rollOrder = boxes.map(b => b.dataset.key);
+            saveState();
         }
 
         function assignToTeam(card, key) {
             const roster = document.querySelector(`.team-roster[data-key="${key}"]`);
-            if (roster) roster.appendChild(card);
+            if (roster) {
+                roster.appendChild(card);
+                appState.assignments[card.dataset.name] = 'team:' + key;
+                saveState();
+            }
             card.classList.remove('flipped');
+            checkDraftComplete();
         }
 
         // ---- флип-картки: тап на гравця перевертає картку, на звороті — кнопки призначення ----
@@ -625,12 +854,13 @@
         }
 
         function openFlip(card, back) {
-            back.querySelectorAll('.flip-btn-grid').forEach(el => el.remove());
+            back.querySelectorAll('.flip-btn-grid, .flip-btn-list').forEach(el => el.remove());
+            const isStep3 = !!card.closest('#step-3');
             const grid = document.createElement('div');
-            grid.className = 'flip-btn-grid';
+            grid.className = isStep3 ? 'flip-btn-list' : 'flip-btn-grid';
 
-            if (card.closest('#step-3')) {
-                // режим драфту: кнопки — активні команди
+            if (isStep3) {
+                // режим драфту: кнопки — активні команди, вертикально
                 TEAM_DEFS.slice(0, teamsCount).forEach(t => {
                     const b = document.createElement('button');
                     b.className = 'flip-btn';
@@ -661,14 +891,40 @@
             // перше вільне місце капітана по порядку команд (не завжди перша команда)
             const slots = [...document.querySelectorAll('.captain-slot')];
             const target = slots.find(s => s.children.length === 0);
-            if (target) target.appendChild(card);
+            if (target) {
+                target.appendChild(card);
+                card.querySelector('.flip-front').classList.add('is-captain');
+                const key = target.closest('.team-container').dataset.key;
+                appState.captains[key] = card.dataset.name;
+                delete appState.assignments[card.dataset.name];
+                saveState();
+            }
             card.classList.remove('flipped');
         }
 
         function assignBasket(card, i) {
             const wrap = document.querySelector(`.column-basket[data-basket="${i}"] .basket-tiles`);
-            if (wrap) wrap.appendChild(card);
+            if (wrap) {
+                wrap.appendChild(card);
+                card.querySelector('.flip-front').classList.remove('is-captain');
+                appState.assignments[card.dataset.name] = i;
+                Object.keys(appState.captains).forEach(k => {
+                    if (appState.captains[k] === card.dataset.name) delete appState.captains[k];
+                });
+                saveState();
+            }
             card.classList.remove('flipped');
+        }
+
+        function checkDraftComplete() {
+            const remaining = document.querySelectorAll('#draft-grid-3 .basket-tiles .flip-card').length;
+            const playBtn = document.getElementById('play-btn');
+            if (playBtn) playBtn.classList.toggle('hidden', remaining > 0);
+        }
+
+        function startPlay() {
+            // TODO: наступний крок (матч-день) ще не описаний — тимчасова заглушка
+            alert('Наступний крок (гра) ще не реалізований.');
         }
     </script>
 </body>
