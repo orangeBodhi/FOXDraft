@@ -921,7 +921,7 @@
                 } else if (savedStep === 'step-4') {
                     switchStep('step-landing', 'step-4');
                     document.getElementById('jereb-hint').innerHTML = teamsCount === 2
-                        ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч<br>(відповідно, інша команда вибирає поле).'
+                        ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч<br>(відповідно, інша команда вибирає поле).<br> Команда яка буде зліва - м\'яч, справа - поле'
                         : 'Киньте жереб, щоб з\'ясувати:<br>які перші дві команди грають між собою';
                     if (appState.matchNumber > 0 && appState.onHill) {
                         document.getElementById('jereb-btn').classList.add('hidden');
