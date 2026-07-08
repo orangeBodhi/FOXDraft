@@ -451,8 +451,24 @@
         let basketsCount = 0;
 
         // ---- MATCHDAY: стан, що зберігається у Firestore ----
+        // Підтримуємо чистий шлях /080726, старий ?id=080726, і ?mid=080726 з 404.html-редиректу
+        (function () {
+            const params = new URLSearchParams(location.search);
+            const stashed = params.get('mid');
+            if (stashed) {
+                const base = location.pathname.replace(/\/$/, '') + '/';
+                history.replaceState(null, '', base + stashed);
+            }
+        })();
+
+        function extractMatchIdFromPath() {
+            const segments = location.pathname.replace(/\/$/, '').split('/').filter(Boolean);
+            const last = segments[segments.length - 1] || '';
+            return /^\d{6}$/.test(last) ? last : null;
+        }
+
         const urlParams = new URLSearchParams(location.search);
-        const matchId = urlParams.get('id');
+        const matchId = extractMatchIdFromPath() || urlParams.get('id');
 
         let appState = {
             matchId: matchId || null,
@@ -508,7 +524,8 @@
                     onHill: null, matchQueue: [], matchNumber: 0, stats: {}, finalStandings: null,
                     createdAt: Date.now()
                 });
-                location.href = location.pathname + '?id=' + id;
+                const base = location.pathname.replace(/index\.html$/, '').replace(/\/$/, '');
+                location.href = base + '/' + id;
             } catch (err) {
                 errEl.innerText = 'Помилка зʼєднання з базою: ' + (err.message || err);
                 errEl.classList.remove('hidden');
