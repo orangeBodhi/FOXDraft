@@ -164,7 +164,7 @@
 
         .draft-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 16px; margin-top: 4px;
         }
         .column-basket {
@@ -272,12 +272,12 @@
             <div id="players-list" class="tiles-zone"></div>
 
             <h3>Команди</h3>
+            <p style="margin-top:-4px;">Оберіть кількість команд!</p>
+            <div id="team-count-buttons" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:16px;"></div>
             <div id="teams-row" class="teams-row"></div>
-            <div style="text-align:center; margin-bottom:8px;">
-                <button id="toggle-will-btn" class="btn btn-ghost btn-sm" onclick="toggleWillTeam()">+ Додати команду 4</button>
-            </div>
 
             <h3>Кошики</h3>
+            <p style="margin-top:-4px;">Оберіть кількість кошиків!</p>
             <div id="basket-selector" style="margin-bottom: 14px;">
                 <div id="basket-buttons"></div>
             </div>
@@ -288,14 +288,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script>
         const croppers = [];
-        const initialTeams = [
+        const TEAM_DEFS = [
             { key: 'fortune', name: 'Fortune (Фортуна)', img: 'assets/fortune.png' },
             { key: 'otamans', name: 'Otamans (Отамани)', img: 'assets/otamans.png' },
-            { key: 'character', name: 'X-Character (Характер)', img: 'assets/character.png' }
+            { key: 'character', name: 'X-Character (Характер)', img: 'assets/character.png' },
+            { key: 'will', name: 'Воля', img: 'assets/will.png' }
         ];
-        const willTeam = { key: 'will', name: 'Воля', img: 'assets/will.png' };
 
-        let basketsCount = 3;
+        let teamsCount = 0;
+        let basketsCount = 0;
 
         let ocrWorkerPromise = null;
         function getWorker() {
@@ -425,26 +426,62 @@
         function goToDraft() {
             renderPlayers(recognizedNames);
             switchStep('step-1b', 'step-2');
-            renderTeams();
-            startDraft(3);
+            renderTeamCountButtons();
+            renderBasketButtons();
         }
 
-        function renderTeams() {
+        function renderTeamCountButtons() {
+            const container = document.getElementById('team-count-buttons');
+            container.innerHTML = '';
+            [2, 3, 4].forEach(n => {
+                const b = document.createElement('button');
+                b.className = 'btn btn-sm' + (n === teamsCount ? '' : ' btn-ghost');
+                b.innerText = n;
+                b.onclick = () => setTeamsCount(n);
+                container.appendChild(b);
+            });
+        }
+
+        function setTeamsCount(n) {
             const row = document.getElementById('teams-row');
+            const pool = document.getElementById('players-list');
+
+            // зберігаємо капітанів по ключу команди перед перебудовою
+            const existingCaptains = {};
+            row.querySelectorAll('.team-container').forEach(div => {
+                const slot = div.querySelector('.captain-slot');
+                if (slot && slot.children.length) existingCaptains[div.dataset.key] = slot.children[0];
+            });
+
+            teamsCount = n;
             row.innerHTML = '';
-            initialTeams.forEach(t => createTeamUI(t.name, t.img));
+            const activeDefs = TEAM_DEFS.slice(0, n);
+            activeDefs.forEach(t => createTeamUI(t));
+
+            const activeKeys = activeDefs.map(t => t.key);
+            Object.keys(existingCaptains).forEach(key => {
+                if (activeKeys.includes(key)) {
+                    const slot = row.querySelector(`.team-container[data-key="${key}"] .captain-slot`);
+                    if (slot) slot.appendChild(existingCaptains[key]);
+                } else {
+                    // команда зникла — капітан повертається у загальний список
+                    pool.appendChild(existingCaptains[key]);
+                }
+            });
+
+            renderTeamCountButtons();
         }
 
-        function createTeamUI(name, img) {
+        function createTeamUI(teamDef) {
             const row = document.getElementById('teams-row');
             const div = document.createElement('div');
             div.className = 'team-container';
-            div.setAttribute('data-name', name);
+            div.dataset.key = teamDef.key;
             div.innerHTML = `
-                <div class="team-name">${name}</div>
-                <div class="team-logo" style="background-image:url('${img}')"></div>
+                <div class="team-name">${teamDef.name}</div>
+                <div class="team-logo" style="background-image:url('${teamDef.img}')"></div>
                 <div class="captain-badge">C</div>
-                <div class="captain-slot" data-team="${name}"></div>`;
+                <div class="captain-slot" data-team="${teamDef.name}"></div>`;
             row.appendChild(div);
         }
 
@@ -489,20 +526,6 @@
             });
 
             renderBasketButtons();
-        }
-
-        function toggleWillTeam() {
-            const btn = document.getElementById('toggle-will-btn');
-            let will = document.querySelector('[data-name="' + willTeam.name + '"]');
-            if (will) {
-                const slot = will.querySelector('.captain-slot');
-                if (slot.children.length) document.getElementById('players-list').appendChild(slot.children[0]);
-                will.remove();
-                btn.innerText = "+ Додати команду 4";
-            } else {
-                createTeamUI(willTeam.name, willTeam.img);
-                btn.innerText = "− Прибрати команду 4";
-            }
         }
 
         // ---- флип-картки: тап на гравця перевертає картку, на звороті — кнопки призначення ----
