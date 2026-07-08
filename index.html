@@ -131,6 +131,7 @@
             background: var(--card-bg-2); padding: 14px 12px 12px;
             border-radius: 14px; width: 140px;
         }
+        .team-roster { min-height: 30px; width: 100%; }
         .team-logo {
             width: 88px; height: 88px; border: 2px solid #334155; border-radius: 12px;
             background-size: contain; background-repeat: no-repeat; background-position: center;
@@ -282,6 +283,22 @@
             <h3>Гравці</h3>
             <p style="margin-top:-4px;">Тапни на гравця — картка перегорнеться, обери чи обрати його капітаном, чи до якого кошика призначити. Щоб закрити картку гравця — натисни хрестик на ній і вона перегорнеться назад.</p>
             <div id="players-list" class="tiles-zone"></div>
+
+            <div style="text-align:center; margin-top:20px;">
+                <button class="btn" onclick="goToDraftStep3()">Перейти до драфту</button>
+            </div>
+        </div>
+
+        <div id="step-3" class="step hidden">
+            <h2>Крок 3: Драфт</h2>
+            <p>Натисніть кнопку жеребу щоб дізнатись порядок відбору гравців капітанами.</p>
+            <button class="btn" onclick="rollDraftOrder()">Кинути жереб</button>
+
+            <p style="margin-top:18px;">Команди розташовані зліва-на-право в порядку вибору гравців.</p>
+            <div id="teams-row-3" class="teams-row"></div>
+
+            <p style="margin-top:22px;">Капітани по черзі вибирають гравців з кошиків, для цього потрібно тапнути на гравця і вибрати йому відповідну команду (мають бути кнопки — Фортуна, Отамани, Характер, Воля — в залежності від того скільки команд вибрано).</p>
+            <div id="draft-grid-3" class="draft-grid"></div>
         </div>
     </div>
 
@@ -289,10 +306,10 @@
     <script>
         const croppers = [];
         const TEAM_DEFS = [
-            { key: 'fortune', name: 'Fortune (Фортуна)', img: 'assets/fortune.png' },
-            { key: 'otamans', name: 'Otamans (Отамани)', img: 'assets/otamans.png' },
-            { key: 'character', name: 'X-Character (Характер)', img: 'assets/character.png' },
-            { key: 'will', name: 'Воля', img: 'assets/will.png' }
+            { key: 'fortune', name: 'Fortune (Фортуна)', shortName: 'Фортуна', img: 'assets/fortune.png' },
+            { key: 'otamans', name: 'Otamans (Отамани)', shortName: 'Отамани', img: 'assets/otamans.png' },
+            { key: 'character', name: 'X-Character (Характер)', shortName: 'Характер', img: 'assets/character.png' },
+            { key: 'will', name: 'Воля', shortName: 'Воля', img: 'assets/will.png' }
         ];
 
         let teamsCount = 0;
@@ -528,6 +545,59 @@
             renderBasketButtons();
         }
 
+        // ---- Крок 3: Драфт ----
+        function goToDraftStep3() {
+            const teamsRow3 = document.getElementById('teams-row-3');
+            teamsRow3.innerHTML = '';
+            TEAM_DEFS.slice(0, teamsCount).forEach(t => {
+                const box = document.createElement('div');
+                box.className = 'team-container';
+                box.dataset.key = t.key;
+                box.innerHTML = `
+                    <div class="team-name">${t.name}</div>
+                    <div class="team-logo" style="background-image:url('${t.img}')"></div>
+                    <div class="team-roster tiles-zone" data-key="${t.key}"></div>`;
+                teamsRow3.appendChild(box);
+
+                // переносимо капітана з кроку 2 (якщо призначений) у ростер команди
+                const slot2 = document.querySelector(`#teams-row .team-container[data-key="${t.key}"] .captain-slot`);
+                if (slot2 && slot2.children.length) {
+                    box.querySelector('.team-roster').appendChild(slot2.children[0]);
+                }
+            });
+
+            // переносимо кошики разом з гравцями, які лишились не в капітанах
+            const grid3 = document.getElementById('draft-grid-3');
+            grid3.innerHTML = '';
+            document.querySelectorAll('#draft-grid .column-basket').forEach(col => {
+                const newCol = document.createElement('div');
+                newCol.className = 'column-basket';
+                newCol.dataset.basket = col.dataset.basket;
+                newCol.innerHTML = `<h4>Кошик ${col.dataset.basket}</h4><div class="basket-tiles tiles-zone"></div>`;
+                grid3.appendChild(newCol);
+                const newWrap = newCol.querySelector('.basket-tiles');
+                [...col.querySelectorAll('.flip-card')].forEach(tile => newWrap.appendChild(tile));
+            });
+
+            switchStep('step-2', 'step-3');
+        }
+
+        function rollDraftOrder() {
+            const row = document.getElementById('teams-row-3');
+            const boxes = [...row.children];
+            for (let i = boxes.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [boxes[i], boxes[j]] = [boxes[j], boxes[i]];
+            }
+            boxes.forEach(b => row.appendChild(b));
+        }
+
+        function assignToTeam(card, key) {
+            const roster = document.querySelector(`.team-roster[data-key="${key}"]`);
+            if (roster) roster.appendChild(card);
+            card.classList.remove('flipped');
+        }
+
         // ---- флип-картки: тап на гравця перевертає картку, на звороті — кнопки призначення ----
         function renderPlayers(names) {
             const list = document.getElementById('players-list');
@@ -559,18 +629,29 @@
             const grid = document.createElement('div');
             grid.className = 'flip-btn-grid';
 
-            const kepBtn = document.createElement('button');
-            kepBtn.className = 'flip-btn kep';
-            kepBtn.innerText = 'КЕП';
-            kepBtn.onclick = (e) => { e.stopPropagation(); assignCaptain(card); };
-            grid.appendChild(kepBtn);
+            if (card.closest('#step-3')) {
+                // режим драфту: кнопки — активні команди
+                TEAM_DEFS.slice(0, teamsCount).forEach(t => {
+                    const b = document.createElement('button');
+                    b.className = 'flip-btn';
+                    b.innerText = t.shortName;
+                    b.onclick = (e) => { e.stopPropagation(); assignToTeam(card, t.key); };
+                    grid.appendChild(b);
+                });
+            } else {
+                const kepBtn = document.createElement('button');
+                kepBtn.className = 'flip-btn kep';
+                kepBtn.innerText = 'КЕП';
+                kepBtn.onclick = (e) => { e.stopPropagation(); assignCaptain(card); };
+                grid.appendChild(kepBtn);
 
-            for (let i = 1; i <= basketsCount; i++) {
-                const b = document.createElement('button');
-                b.className = 'flip-btn';
-                b.innerText = 'К' + i;
-                b.onclick = (e) => { e.stopPropagation(); assignBasket(card, i); };
-                grid.appendChild(b);
+                for (let i = 1; i <= basketsCount; i++) {
+                    const b = document.createElement('button');
+                    b.className = 'flip-btn';
+                    b.innerText = 'К' + i;
+                    b.onclick = (e) => { e.stopPropagation(); assignBasket(card, i); };
+                    grid.appendChild(b);
+                }
             }
             back.appendChild(grid);
             card.classList.add('flipped');
