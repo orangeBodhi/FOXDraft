@@ -55,7 +55,7 @@
             pointer-events: none;
         }
         .step h2 { font-size: 1.3rem; margin-top: 0; }
-        .step p { color: var(--text-dim); line-height: 1.55; font-size: 0.95rem; }
+        .step p { color: var(--text-dim); line-height: 1.55; font-size: 0.95rem; overflow-wrap: anywhere; word-break: break-word; }
         .step { text-align: center; }
 
         /* Кнопки — сучасні, з тап-ефектом */
@@ -421,18 +421,24 @@
         </div>
 
         <div id="step-5" class="step hidden">
-            <h3 class="place-label" style="color:#ef4444;">Переможці 🥇</h3>
-            <div id="champion-box" class="team-container" style="max-width:320px; margin:0 auto 20px; width:100%;"></div>
+            <div id="place-1-wrap" class="hidden">
+                <h3 class="place-label" style="color:#ef4444;">Переможці 🥇</h3>
+                <div id="place-1-teams" class="teams-row" style="margin-bottom:20px;"></div>
+            </div>
 
-            <h3 class="place-label" style="color:#ef4444;">Срібло 🥈</h3>
-            <div id="second-place-box" class="team-container" style="max-width:280px; margin:0 auto 20px; width:100%;"></div>
+            <div id="place-2-wrap" class="hidden">
+                <h3 class="place-label" style="color:#ef4444;">Срібло 🥈</h3>
+                <div id="place-2-teams" class="teams-row" style="margin-bottom:20px;"></div>
+            </div>
 
-            <h3 class="place-label" style="color:#ef4444;">Бронза 🥉</h3>
-            <div id="third-place-box" class="team-container" style="max-width:280px; margin:0 auto 20px; width:100%;"></div>
+            <div id="place-3-wrap" class="hidden">
+                <h3 class="place-label" style="color:#ef4444;">Бронза 🥉</h3>
+                <div id="place-3-teams" class="teams-row" style="margin-bottom:20px;"></div>
+            </div>
 
-            <div id="fourth-place-wrap" class="hidden">
+            <div id="place-4-wrap" class="hidden">
                 <h3 class="place-label" style="color:#ef4444;">Шоколад 🍫</h3>
-                <div id="fourth-place-box" class="team-container" style="max-width:280px; margin:0 auto 20px; width:100%;"></div>
+                <div id="place-4-teams" class="teams-row" style="margin-bottom:20px;"></div>
             </div>
 
             <h3 style="margin-top:30px;">Турнірна таблиця</h3>
@@ -1277,29 +1283,58 @@
             return { captain, others };
         }
 
-        function renderChampionsPage(sorted) {
-            const boxes = [
-                document.getElementById('champion-box'),
-                document.getElementById('second-place-box'),
-                document.getElementById('third-place-box'),
-                document.getElementById('fourth-place-box')
-            ];
-            sorted.slice(0, 4).forEach((key, i) => {
-                const t = TEAM_DEFS.find(td => td.key === key);
-                const { captain, others } = teamRosterInfo(key);
-                const box = boxes[i];
-                if (!box || !t) return;
-                box.innerHTML = `
-                    <div class="team-name">${t.name}</div>
-                    <div class="team-logo" style="background-image:url('${t.img}')"></div>
-                    <div style="font-size:0.85rem; text-align:left; width:100%; margin-top:8px; line-height:1.5;">
-                        Склад:<br>
-                        Капітан - ${captain || '—'}<br>
-                        ${others.map(n => '— ' + n).join('<br>')}
-                    </div>`;
+        function groupByRank(sortedKeys) {
+            const groups = [];
+            let current = [];
+            sortedKeys.forEach((key, i) => {
+                if (i === 0) { current = [key]; return; }
+                const prevKey = sortedKeys[i - 1];
+                const sp = appState.stats[prevKey], sc = appState.stats[key];
+                if (sp.points === sc.points && sp.wins === sc.wins && sp.losses === sc.losses) {
+                    current.push(key);
+                } else {
+                    groups.push(current);
+                    current = [key];
+                }
             });
+            if (current.length) groups.push(current);
+            return groups;
+        }
 
-            document.getElementById('fourth-place-wrap').classList.toggle('hidden', sorted.length < 4);
+        function makeRosterBox(key) {
+            const t = TEAM_DEFS.find(td => td.key === key);
+            const { captain, others } = teamRosterInfo(key);
+            const box = document.createElement('div');
+            box.className = 'team-container';
+            box.style.maxWidth = '280px';
+            box.style.width = '100%';
+            box.innerHTML = `
+                <div class="team-name">${t.name}</div>
+                <div class="team-logo" style="background-image:url('${t.img}')"></div>
+                <div style="font-size:0.85rem; text-align:left; width:100%; margin-top:8px; line-height:1.5;">
+                    Склад:<br>
+                    Капітан - ${captain || '—'}<br>
+                    ${others.map(n => '— ' + n).join('<br>')}
+                </div>`;
+            return box;
+        }
+
+        function renderChampionsPage(sorted) {
+            const places = [
+                { wrap: document.getElementById('place-1-wrap'), teamsEl: document.getElementById('place-1-teams') },
+                { wrap: document.getElementById('place-2-wrap'), teamsEl: document.getElementById('place-2-teams') },
+                { wrap: document.getElementById('place-3-wrap'), teamsEl: document.getElementById('place-3-teams') },
+                { wrap: document.getElementById('place-4-wrap'), teamsEl: document.getElementById('place-4-teams') }
+            ];
+            places.forEach(p => { p.wrap.classList.add('hidden'); p.teamsEl.innerHTML = ''; });
+
+            const groups = groupByRank(sorted);
+            groups.forEach((group, i) => {
+                if (i >= places.length) return;
+                const { wrap, teamsEl } = places[i];
+                wrap.classList.remove('hidden');
+                group.forEach(key => teamsEl.appendChild(makeRosterBox(key)));
+            });
 
             const tbody = document.getElementById('final-table-body');
             tbody.innerHTML = '';
@@ -1324,7 +1359,8 @@
             const sorted = [...activeKeys].sort((a, b) => {
                 const sa = appState.stats[a], sb = appState.stats[b];
                 if (sb.points !== sa.points) return sb.points - sa.points;
-                return sb.wins - sa.wins;
+                if (sb.wins !== sa.wins) return sb.wins - sa.wins;
+                return sa.losses - sb.losses; // менше поразок — краще місце
             });
             appState.finalStandings = sorted;
             appState.step = 'step-5';
