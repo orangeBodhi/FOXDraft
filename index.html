@@ -1167,6 +1167,14 @@
         }
 
         function goToDraftStep3() {
+            if (teamsCount === 0) {
+                alert('Спочатку обери кількість команд (2, 3 або 4)!');
+                return;
+            }
+            if (basketsCount === 0) {
+                alert('Спочатку обери кількість кошиків!');
+                return;
+            }
             buildStep3Data();
             switchStep('step-2', 'step-3');
             appState.step = 'step-3';
