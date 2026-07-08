@@ -267,6 +267,10 @@
             50% { box-shadow: 0 0 18px 5px rgba(59,130,246,0.9), 0 0 34px 12px rgba(59,130,246,0.5); }
         }
 
+        .btn-coin { display: inline-flex; align-items: center; gap: 8px; }
+        .btn-coin img { width: 26px; height: 26px; border-radius: 50%; transition: transform .6s ease; }
+        .btn-coin:active img { transform: rotateY(360deg); }
+
         .btn-finish {
             background: linear-gradient(135deg, #f97316, #dc2626);
             box-shadow: 0 4px 14px rgba(249,115,22,0.4);
@@ -307,6 +311,13 @@
         }
         .review-name { font-size: 0.95rem; word-break: break-word; flex: 1; }
         .review-number { color: var(--text-dim); font-size: 0.85rem; font-weight: 600; min-width: 22px; }
+        .review-delete-btn {
+            background: rgba(248,113,113,0.12); color: var(--danger); border: 1.5px solid rgba(248,113,113,0.4);
+            border-radius: 8px; width: 34px; height: 34px; font-size: 1rem; font-weight: 700;
+            cursor: pointer; flex-shrink: 0; transition: background .15s ease, transform .15s ease;
+        }
+        .review-delete-btn:hover { background: rgba(248,113,113,0.25); }
+        .review-delete-btn:active { transform: scale(0.9); }
         .review-input {
             flex: 1; background: var(--bg); border: 1px solid #334155; border-radius: 8px;
             padding: 8px 10px; color: var(--text); font-family: inherit; font-size: 0.9rem;
@@ -370,7 +381,7 @@
 
         <div id="step-1" class="step hidden">
             <h2>Крок 1: Завантаження результатів опитування</h2>
-            <p>Завантаж скрін опитування з Telegram (кнопка "Завантажити скрін") і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо — тільки імена гравців! це обов'язково! якщо в скріні прописане не повне ім'я гравця це не суттєво — головне розуміти хто є хто). Якщо потрібно декілька скрінів — натисни кнопку "+Ще скрін" і обріж його так само. Після цього тисни "Розпізнати гравців" — створиться перелік всіх гравців у вигляді карток. Там же буде передбачено додати гравця, якого не розпізнало взагалі, або гравця не з групи (пусте поле і поруч "Додати гравця не з групи" — треба написати його ім'я і натиснути цю кнопку "Додати..."; перевірте чи він додався до переліку!).</p>
+            <p>Завантаж скрін опитування з Telegram (кнопка "Завантажити скрін") і обріж його тут на сайті так, щоб був тільки текст імен-прізвищ (нікнеймів) тих, хто проголосував "Буду" (без аватарок, часу голосування, тощо — тільки імена гравців! це обов'язково! якщо в скріні прописане не повне ім'я гравця це не суттєво — головне розуміти хто є хто). Якщо потрібно декілька скрінів — натисни кнопку "+Ще скрін" і обріж його так само. Після цього тисни "Розпізнати гравців" — створиться перелік всіх гравців у вигляді карток. Там же буде передбачено додати гравця, якого не розпізнало взагалі, або гравця не з групи (пусте поле і поруч "Додати гравця" — треба написати його ім'я і натиснути кнопку "Додати..."; перевірте чи він додався до переліку!).</p>
             <input type="file" id="file-input" accept="image/*" class="hidden-input">
             <button class="btn" onclick="document.getElementById('file-input').click()">Завантажити скрін</button>
             <div id="croppers-grid" style="margin-top:16px;"></div>
@@ -381,11 +392,11 @@
 
         <div id="step-1b" class="step hidden">
             <h2>Перевірка заявки</h2>
-            <p>Переглянь чи вірно вказані імена всіх футболістів? Якщо потрібно натисни "Правити" і зроби як треба. Наразі розпізнано наступних гравців:</p>
+            <p>Переглянь чи вірно вказані імена всіх футболістів? Якщо потрібно натисни "Правити" і зроби як треба. Або взагалі видали зайві позиції (кнопка хрестика). Наразі розпізнано наступних гравців:</p>
             <div id="review-list"></div>
             <div style="display:flex; gap:8px; justify-content:center; align-items:center; max-width:420px; margin:0 auto 18px;">
                 <input id="new-player-input" class="review-input" type="text" placeholder="Ім'я гравця" style="flex:1;" onkeydown="if(event.key==='Enter') addManualPlayer();">
-                <button class="btn btn-ghost btn-sm" onclick="addManualPlayer()">Додати гравця не з групи</button>
+                <button class="btn btn-ghost btn-sm" onclick="addManualPlayer()">Додати гравця</button>
             </div>
             <button class="btn" onclick="goToDraft()">Перейти до жеребкування</button>
         </div>
@@ -417,7 +428,7 @@
         <div id="step-3" class="step hidden">
             <h2>Крок 3: Драфт</h2>
             <p id="roll-hint">Натисніть кнопку жеребу щоб дізнатись порядок відбору гравців капітанами.</p>
-            <button id="roll-btn" class="btn" onclick="rollDraftOrder()">Кинути жереб</button>
+            <button id="roll-btn" class="btn btn-coin" onclick="rollDraftOrder()"><img src="assets/coin-jereb.png" alt=""> Кинути жереб</button>
 
             <p style="margin-top:18px;">Команди розташовані зліва-на-право в порядку вибору гравців.</p>
             <div id="teams-row-3" class="teams-row hidden"></div>
@@ -432,7 +443,7 @@
 
         <div id="step-4" class="step hidden">
             <p id="jereb-hint">Киньте жереб, щоб з'ясувати:<br>які перші дві команди грають між собою</p>
-            <button id="jereb-btn" class="btn" onclick="rollFirstMatch()">ЖЕРЕБ</button>
+            <button id="jereb-btn" class="btn btn-coin" onclick="rollFirstMatch()"><img src="assets/coin-jereb.png" alt=""> ЖЕРЕБ</button>
 
             <h3 id="match-title" class="hidden" style="margin-top:20px;"></h3>
 
@@ -924,10 +935,18 @@
                     <span class="review-number">${idx + 1}.</span>
                     <span class="review-name">${name}</span>
                     <input class="review-input hidden" type="text" value="${name}">
-                    <button class="btn btn-ghost btn-sm review-edit-btn">Правити</button>`;
+                    <button class="btn btn-ghost btn-sm review-edit-btn">Правити</button>
+                    <button class="review-delete-btn" title="Видалити">✕</button>`;
                 const nameSpan = row.querySelector('.review-name');
                 const input = row.querySelector('.review-input');
                 const editBtn = row.querySelector('.review-edit-btn');
+                const deleteBtn = row.querySelector('.review-delete-btn');
+                deleteBtn.onclick = () => {
+                    recognizedNames.splice(idx, 1);
+                    renderReviewList(recognizedNames);
+                    appState.players = recognizedNames;
+                    saveState();
+                };
                 editBtn.onclick = () => {
                     if (input.classList.contains('hidden')) {
                         nameSpan.classList.add('hidden');
