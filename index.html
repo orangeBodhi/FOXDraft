@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>FOXDraft</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -56,6 +56,17 @@
             pointer-events: none;
         }
         .step h2 { font-size: 1.3rem; margin-top: 0; }
+        .landing-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, var(--emerald), #60a5fa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 4px 0 12px;
+        }
         .step p { color: var(--text-dim); line-height: 1.55; font-size: 0.95rem; overflow-wrap: anywhere; word-break: break-word; }
         .step { text-align: center; }
 
@@ -267,6 +278,19 @@
             100% { transform: scale(1); box-shadow: 0 4px 14px rgba(249,115,22,0.4); }
         }
 
+        .btn-stats { position: relative; overflow: hidden; }
+        .btn-stats::after {
+            content: '';
+            position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+            background: linear-gradient(120deg, transparent, rgba(129,140,248,0.4), transparent);
+            transform: skewX(-20deg);
+            animation: stats-shimmer 2.8s ease-in-out infinite;
+        }
+        @keyframes stats-shimmer {
+            0% { left: -60%; }
+            100% { left: 130%; }
+        }
+
         .place-label {
             font-size: 1.4rem; font-weight: 800; text-align: center; margin: 24px 0 10px;
         }
@@ -292,6 +316,7 @@
             body { padding: 12px; }
             .step { padding: 16px; border-radius: 14px; }
             .main-logo img { width: 100%; }
+            .landing-title { font-size: 1.9rem; }
             .team-container { width: 104px; padding: 10px 8px 8px; }
             .team-logo { width: 64px; height: 64px; }
             .team-name { font-size: 0.82rem; }
@@ -312,7 +337,7 @@
         </div>
 
         <div id="step-landing" class="step">
-            <h2>FOXDraft</h2>
+            <h2 class="landing-title">FOX Draft</h2>
             <p id="landing-hint">Розпочни новий ігровий день, щоб продовжити.</p>
             <button class="btn" onclick="showMatchdayForm()">Почати MATCHDAY</button>
             <div id="matchday-form" class="hidden" style="margin-top:16px;">
@@ -322,6 +347,24 @@
                     <button class="btn" onclick="createMatchday()">Створити</button>
                 </div>
                 <div id="matchday-error" class="hidden" style="color:var(--danger); margin-top:10px; font-size:0.9rem;"></div>
+            </div>
+            <div style="margin-top:20px;">
+                <button class="btn btn-ghost btn-sm btn-stats" onclick="showGlobalStats()">Загальна статистика</button>
+            </div>
+        </div>
+
+        <div id="step-stats" class="step hidden">
+            <h2>Загальна статистика</h2>
+            <div id="stats-status" class="status-line"></div>
+            <div id="stats-content" class="hidden">
+                <h3>Команда-лідер за перемогами</h3>
+                <div id="stats-team-leader" style="font-size:1.1rem; font-weight:700; margin-bottom:20px;"></div>
+
+                <h3>ТОП-3 гравці за перемогами</h3>
+                <div id="stats-top-players" style="max-width:400px; margin:0 auto; text-align:left;"></div>
+            </div>
+            <div style="margin-top:24px;">
+                <button class="btn btn-ghost" onclick="switchStep('step-stats','step-landing')">← Назад</button>
             </div>
         </div>
 
@@ -465,7 +508,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // Firebase-конфіг проекту FOXDraft
         const firebaseConfig = {
@@ -482,6 +525,8 @@
         window.fbDoc = doc;
         window.fbGetDoc = getDoc;
         window.fbSetDoc = setDoc;
+        window.fbCollection = collection;
+        window.fbGetDocs = getDocs;
         window.dispatchEvent(new Event('firebase-ready'));
     </script>
 
@@ -546,6 +591,84 @@
 
         function showMatchdayForm() {
             document.getElementById('matchday-form').classList.remove('hidden');
+        }
+
+        async function showGlobalStats() {
+            switchStep('step-landing', 'step-stats');
+            const statusEl = document.getElementById('stats-status');
+            const contentEl = document.getElementById('stats-content');
+            contentEl.classList.add('hidden');
+            statusEl.innerHTML = '<span class="spinner"></span><span>Завантажую дані з усіх ігрових днів...</span>';
+
+            try {
+                const snap = await window.fbGetDocs(window.fbCollection(window.db, 'matchdays'));
+                if (snap.empty) {
+                    statusEl.innerText = 'Ще немає жодного завершеного ігрового дня.';
+                    return;
+                }
+
+                const teamWins = {};
+                const playerWins = {};
+                TEAM_DEFS.forEach(t => teamWins[t.key] = 0);
+
+                snap.forEach(docSnap => {
+                    const d = docSnap.data();
+                    if (!d.stats) return;
+
+                    // сумарні перемоги команд
+                    Object.keys(d.stats).forEach(key => {
+                        if (teamWins[key] === undefined) teamWins[key] = 0;
+                        teamWins[key] += d.stats[key].wins || 0;
+                    });
+
+                    // перемоги гравців: кожна перемога команди в цей день зараховується
+                    // всім гравцям її складу (капітан + драфтовані), склад за день не змінюється
+                    const rosterByTeam = {};
+                    Object.keys(d.captains || {}).forEach(key => {
+                        rosterByTeam[key] = rosterByTeam[key] || [];
+                        if (d.captains[key]) rosterByTeam[key].push(d.captains[key]);
+                    });
+                    Object.keys(d.assignments || {}).forEach(name => {
+                        const val = d.assignments[name];
+                        if (typeof val === 'string' && val.startsWith('team:')) {
+                            const key = val.slice(5);
+                            rosterByTeam[key] = rosterByTeam[key] || [];
+                            rosterByTeam[key].push(name);
+                        }
+                    });
+
+                    Object.keys(d.stats).forEach(key => {
+                        const winsThisDay = d.stats[key].wins || 0;
+                        if (winsThisDay === 0) return;
+                        (rosterByTeam[key] || []).forEach(name => {
+                            playerWins[name] = (playerWins[name] || 0) + winsThisDay;
+                        });
+                    });
+                });
+
+                // команда-лідер
+                let leaderKey = null, leaderWins = -1;
+                Object.keys(teamWins).forEach(key => {
+                    if (teamWins[key] > leaderWins) { leaderWins = teamWins[key]; leaderKey = key; }
+                });
+                const leaderDef = TEAM_DEFS.find(t => t.key === leaderKey);
+                document.getElementById('stats-team-leader').innerText =
+                    leaderDef ? `${leaderDef.name} — ${leaderWins} перемог` : 'Дані відсутні';
+
+                // топ-3 гравці
+                const topPlayers = Object.entries(playerWins)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3);
+                const listEl = document.getElementById('stats-top-players');
+                listEl.innerHTML = topPlayers.length
+                    ? topPlayers.map((p, i) => `<div style="padding:6px 0; border-bottom:1px solid #334155;">${i + 1}. ${p[0]} — ${p[1]} перемог</div>`).join('')
+                    : '<div>Дані відсутні</div>';
+
+                statusEl.innerHTML = '';
+                contentEl.classList.remove('hidden');
+            } catch (err) {
+                statusEl.innerText = 'Помилка завантаження: ' + (err.message || err);
+            }
         }
 
         async function createMatchday() {
