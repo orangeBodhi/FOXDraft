@@ -267,9 +267,27 @@
             50% { box-shadow: 0 0 18px 5px rgba(59,130,246,0.9), 0 0 34px 12px rgba(59,130,246,0.5); }
         }
 
-        .btn-coin { display: inline-flex; align-items: center; gap: 8px; }
-        .btn-coin img { width: 26px; height: 26px; border-radius: 50%; transition: transform .6s ease; }
-        .btn-coin:active img { transform: rotateY(360deg); }
+        .btn-coin-only {
+            background: none; border: none; cursor: pointer; padding: 0;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            margin: 12px auto;
+        }
+        .btn-coin-only img {
+            width: 130px; height: 130px; border-radius: 50%;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+            transition: transform .2s ease;
+        }
+        .btn-coin-only:hover img { transform: scale(1.05); }
+        .btn-coin-only:active img { transform: scale(0.94); }
+        .btn-coin-only.flipping img { animation: coin-flip .6s ease; }
+        @keyframes coin-flip {
+            0% { transform: rotateY(0) scale(1); }
+            50% { transform: rotateY(360deg) scale(1.08); }
+            100% { transform: rotateY(720deg) scale(1); }
+        }
+        .coin-caption {
+            font-size: 0.85rem; font-weight: 800; color: var(--emerald); letter-spacing: 0.08em;
+        }
 
         .btn-finish {
             background: linear-gradient(135deg, #f97316, #dc2626);
@@ -327,6 +345,7 @@
             body { padding: 12px; }
             .step { padding: 16px; border-radius: 14px; }
             .main-logo img { width: 100%; }
+            .btn-coin-only img { width: 100px; height: 100px; }
             .landing-title { font-size: 1.9rem; }
             .team-container { width: 104px; padding: 10px 8px 8px; }
             .team-logo { width: 64px; height: 64px; }
@@ -428,7 +447,10 @@
         <div id="step-3" class="step hidden">
             <h2>Крок 3: Драфт</h2>
             <p id="roll-hint">Натисніть кнопку жеребу щоб дізнатись порядок відбору гравців капітанами.</p>
-            <button id="roll-btn" class="btn btn-coin" onclick="rollDraftOrder()"><img src="assets/coin-jereb.png" alt=""> Кинути жереб</button>
+            <button id="roll-btn" class="btn-coin-only" onclick="rollDraftOrder()">
+                <img src="assets/coin-jereb.png" alt="Кинути жереб">
+                <span class="coin-caption">НАТИСНИ!</span>
+            </button>
 
             <p style="margin-top:18px;">Команди розташовані зліва-на-право в порядку вибору гравців.</p>
             <div id="teams-row-3" class="teams-row hidden"></div>
@@ -443,7 +465,10 @@
 
         <div id="step-4" class="step hidden">
             <p id="jereb-hint">Киньте жереб, щоб з'ясувати:<br>які перші дві команди грають між собою</p>
-            <button id="jereb-btn" class="btn btn-coin" onclick="rollFirstMatch()"><img src="assets/coin-jereb.png" alt=""> ЖЕРЕБ</button>
+            <button id="jereb-btn" class="btn-coin-only" onclick="rollFirstMatch()">
+                <img src="assets/coin-jereb.png" alt="Жереб">
+                <span class="coin-caption">НАТИСНИ!</span>
+            </button>
 
             <h3 id="match-title" class="hidden" style="margin-top:20px;"></h3>
 
@@ -1149,18 +1174,22 @@
         }
 
         function rollDraftOrder() {
-            const row = document.getElementById('teams-row-3');
-            const boxes = [...row.children];
-            for (let i = boxes.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [boxes[i], boxes[j]] = [boxes[j], boxes[i]];
-            }
-            boxes.forEach(b => row.appendChild(b));
-            row.classList.remove('hidden');
-            document.getElementById('roll-btn').classList.add('hidden');
-            document.getElementById('roll-hint').classList.add('hidden');
-            appState.rollOrder = boxes.map(b => b.dataset.key);
-            saveState();
+            const btn = document.getElementById('roll-btn');
+            btn.classList.add('flipping');
+            setTimeout(() => {
+                const row = document.getElementById('teams-row-3');
+                const boxes = [...row.children];
+                for (let i = boxes.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [boxes[i], boxes[j]] = [boxes[j], boxes[i]];
+                }
+                boxes.forEach(b => row.appendChild(b));
+                row.classList.remove('hidden');
+                btn.classList.add('hidden');
+                document.getElementById('roll-hint').classList.add('hidden');
+                appState.rollOrder = boxes.map(b => b.dataset.key);
+                saveState();
+            }, 550);
         }
 
         function assignToTeam(card, key) {
@@ -1284,22 +1313,26 @@
         }
 
         function rollFirstMatch() {
-            const activeKeys = TEAM_DEFS.slice(0, teamsCount).map(t => t.key);
-            const shuffled = [...activeKeys];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-            appState.onHill = [shuffled[0], shuffled[1]];
-            appState.matchQueue = shuffled.slice(2);
-            appState.matchNumber = 1;
-            appState.stats = {};
-            activeKeys.forEach(k => appState.stats[k] = { matches: 0, wins: 0, losses: 0, draws: 0, points: 0 });
+            const btn = document.getElementById('jereb-btn');
+            btn.classList.add('flipping');
+            setTimeout(() => {
+                const activeKeys = TEAM_DEFS.slice(0, teamsCount).map(t => t.key);
+                const shuffled = [...activeKeys];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                appState.onHill = [shuffled[0], shuffled[1]];
+                appState.matchQueue = shuffled.slice(2);
+                appState.matchNumber = 1;
+                appState.stats = {};
+                activeKeys.forEach(k => appState.stats[k] = { matches: 0, wins: 0, losses: 0, draws: 0, points: 0 });
 
-            document.getElementById('jereb-btn').classList.add('hidden');
-            document.getElementById('jereb-hint').classList.add('hidden');
-            renderMatchUI();
-            saveState();
+                btn.classList.add('hidden');
+                document.getElementById('jereb-hint').classList.add('hidden');
+                renderMatchUI();
+                saveState();
+            }, 550);
         }
 
         function renderMatchUI() {
