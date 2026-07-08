@@ -292,7 +292,7 @@
 <body>
     <div class="wrapper">
         <div class="main-logo">
-            <img src="assets/site-logo.png" alt="FOX Logo">
+            <img id="main-logo-img" src="assets/site-logo.png" alt="FOX Logo">
         </div>
 
         <div id="step-landing" class="step">
@@ -372,7 +372,7 @@
         </div>
 
         <div id="step-4" class="step hidden">
-            <p>кнопка ЖЕРЕБ<br>Киньте жереб, щоб з'ясувати:<br>які перші дві команди грають між собою</p>
+            <p id="jereb-hint">Киньте жереб, щоб з'ясувати:<br>які перші дві команди грають між собою</p>
             <button id="jereb-btn" class="btn" onclick="rollFirstMatch()">ЖЕРЕБ</button>
 
             <h3 id="match-title" class="hidden" style="margin-top:20px;"></h3>
@@ -406,9 +406,6 @@
         </div>
 
         <div id="step-5" class="step hidden">
-            <div style="text-align:center; margin-bottom:20px;">
-                <img src="assets/champions.png" alt="Champions" style="max-width:280px; width:100%; border-radius:14px;">
-            </div>
             <div id="champion-box" class="team-container" style="max-width:320px; margin:0 auto 20px; width:100%;"></div>
             <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
                 <div id="second-place-box" class="team-container" style="width:180px;"></div>
@@ -566,7 +563,10 @@
                 if (!name) return;
                 const card = findCardByName(name);
                 const slot = document.querySelector(`#teams-row .team-container[data-key="${key}"] .captain-slot`);
-                if (card && slot) slot.appendChild(card);
+                if (card && slot) {
+                    slot.appendChild(card);
+                    card.querySelector('.flip-front').classList.add('is-captain');
+                }
             });
             Object.keys(appState.assignments || {}).forEach(name => {
                 const val = appState.assignments[name];
@@ -617,6 +617,7 @@
                     switchStep('step-landing', 'step-4');
                     if (appState.matchNumber > 0 && appState.onHill) {
                         document.getElementById('jereb-btn').classList.add('hidden');
+                        document.getElementById('jereb-hint').classList.add('hidden');
                         renderMatchUI();
                         if (appState.matchNumber > 1) renderStandings();
                     }
@@ -716,6 +717,9 @@
             from.classList.add('hidden');
             to.classList.remove('hidden');
             window.scrollTo(0, 0);
+
+            const logoImg = document.getElementById('main-logo-img');
+            logoImg.src = toId === 'step-5' ? 'assets/champions.png' : 'assets/site-logo.png';
         }
 
         // ---- Крок 1b: перевірка та правка розпізнаних імен ----
@@ -1083,6 +1087,7 @@
             activeKeys.forEach(k => appState.stats[k] = { matches: 0, wins: 0, losses: 0, draws: 0, points: 0 });
 
             document.getElementById('jereb-btn').classList.add('hidden');
+            document.getElementById('jereb-hint').classList.add('hidden');
             renderMatchUI();
             saveState();
         }
