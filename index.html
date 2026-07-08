@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>FOXDraft</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Poppins:wght@700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -301,6 +301,49 @@
         }
 
         .btn-stats { position: relative; overflow: hidden; }
+
+        .scoreboard {
+            display: flex; align-items: center; justify-content: center; gap: 18px;
+            background: linear-gradient(180deg, #0a0f1c, #05070d);
+            border: 2px solid #334155; border-radius: 16px;
+            padding: 18px 20px; max-width: 420px; margin: 0 auto 20px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 6px 18px rgba(0,0,0,0.4);
+        }
+        .scoreboard-team { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100px; }
+        .scoreboard-logo { width: 56px; height: 56px; border-radius: 10px; background-size: contain; background-repeat: no-repeat; background-position: center; background-color: #1e293b; border: 1px solid #334155; }
+        .scoreboard-name { font-size: 0.7rem; font-weight: 700; color: #cbd5e1; text-align: center; line-height: 1.2; }
+        .scoreboard-score {
+            font-family: 'Orbitron', monospace; font-size: 2.6rem; font-weight: 900;
+            color: #ffd452; text-shadow: 0 0 12px rgba(255,212,82,0.6);
+            letter-spacing: 2px; display: flex; align-items: center; gap: 4px;
+        }
+        .scoreboard-score .sep { color: #64748b; font-size: 1.8rem; }
+
+        .btn-generate {
+            position: relative;
+            padding: 14px 26px;
+            border-radius: 14px;
+            border: none;
+            font-weight: 800;
+            font-size: 0.95rem;
+            font-family: inherit;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            box-shadow: 0 6px 20px rgba(124,58,237,0.4);
+            display: inline-flex; align-items: center; gap: 10px;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .btn-generate:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(124,58,237,0.55); }
+        .btn-generate:active { transform: scale(0.96); }
+        .generate-sparkle {
+            display: inline-block;
+            animation: sparkle-spin 2.2s ease-in-out infinite;
+        }
+        @keyframes sparkle-spin {
+            0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.8; }
+            50% { transform: rotate(180deg) scale(1.3); opacity: 1; }
+        }
         .btn-stats::after {
             content: '';
             position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
@@ -345,6 +388,10 @@
             body { padding: 12px; }
             .step { padding: 16px; border-radius: 14px; }
             .main-logo img { width: 100%; }
+            .scoreboard { gap: 10px; padding: 14px 12px; }
+            .scoreboard-team { width: 76px; }
+            .scoreboard-logo { width: 44px; height: 44px; }
+            .scoreboard-score { font-size: 2rem; }
             .btn-coin-only img { width: 100px; height: 100px; }
             .landing-title { font-size: 1.9rem; }
             .team-container { width: 104px; padding: 10px 8px 8px; }
@@ -484,6 +531,15 @@
                 <button class="result-btn" id="win-b-btn" onclick="pickResult('winB')">Перемога</button>
             </div>
 
+            <div id="score-input-wrap" class="hidden" style="margin:16px 0;">
+                <p style="margin-bottom:8px;">ВВЕДІТЬ РАХУНОК</p>
+                <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                    <input id="score-a-input" type="number" min="0" class="review-input" style="width:64px; text-align:center;">
+                    <span style="font-weight:700; font-size:1.2rem;">:</span>
+                    <input id="score-b-input" type="number" min="0" class="review-input" style="width:64px; text-align:center;">
+                </div>
+            </div>
+
             <p id="confirm-hint" class="hidden">Перевірте чи результат вірний декілька разів!<br>Після цього натисніть "ЗАТВЕРДЖУЮ!"</p>
             <button id="confirm-btn" class="btn hidden" onclick="confirmMatchResult()">ЗАТВЕРДЖУЮ!</button>
 
@@ -501,6 +557,8 @@
         </div>
 
         <div id="step-5" class="step hidden">
+            <div id="share-capture-area">
+            <div id="match-score-display" class="hidden"></div>
             <div id="place-1-wrap" class="hidden">
                 <h3 class="place-label" style="color:#ef4444;">Переможці 🥇</h3>
                 <div id="place-1-teams" class="teams-row" style="margin-bottom:20px;"></div>
@@ -521,25 +579,47 @@
                 <div id="place-4-teams" class="teams-row" style="margin-bottom:20px;"></div>
             </div>
 
-            <h3 style="margin-top:30px;">Турнірна таблиця</h3>
-            <div style="overflow-x:auto;">
-                <table id="final-table" style="width:100%; max-width:520px; margin:0 auto; border-collapse:collapse; font-size:0.85rem;">
-                    <thead>
-                        <tr style="color:var(--text-dim);">
-                            <th style="text-align:left; padding:6px 8px;">Команда</th>
-                            <th style="text-align:center; padding:6px 8px;">ОЧКІВ</th>
-                            <th style="text-align:center; padding:6px 8px;">Матчів</th>
-                            <th style="text-align:center; padding:6px 8px;">Перемог</th>
-                            <th style="text-align:center; padding:6px 8px;">Поразок</th>
-                            <th style="text-align:center; padding:6px 8px;">Нічиїх</th>
-                        </tr>
+            <div id="final-table-wrap">
+                <h3 style="margin-top:30px;">Турнірна таблиця</h3>
+                <div style="overflow-x:auto;">
+                    <table id="final-table" style="width:100%; max-width:520px; margin:0 auto; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="color:var(--text-dim);">
+                                <th style="text-align:left; padding:6px 8px;">Команда</th>
+                                <th style="text-align:center; padding:6px 8px;">ОЧКІВ</th>
+                                <th style="text-align:center; padding:6px 8px;">Матчів</th>
+                                <th style="text-align:center; padding:6px 8px;">Перемог</th>
+                                <th style="text-align:center; padding:6px 8px;">Поразок</th>
+                                <th style="text-align:center; padding:6px 8px;">Нічиїх</th>
+                            </tr>
                     </thead>
                     <tbody id="final-table-body"></tbody>
                 </table>
+                </div>
+            </div>
+            </div>
+
+            <div style="text-align:center; margin-top:28px;">
+                <button id="generate-image-btn" class="btn-generate" onclick="generateShareImage()">
+                    <span class="generate-sparkle">✦</span> Згенерувати зображення для Telegram
+                </button>
+            </div>
+        </div>
+
+        <div id="step-6" class="step hidden">
+            <h2>Зображення для Telegram</h2>
+            <p>Натисни "Поділитися" щоб надіслати результат у Telegram.</p>
+            <div style="overflow-x:auto;">
+                <img id="share-image-output" style="max-width:100%; border-radius:14px; border:1px solid #334155;">
+            </div>
+            <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button id="share-btn" class="btn" onclick="shareImage()">📤 Поділитися</button>
+                <button class="btn btn-ghost" onclick="switchStep('step-6','step-5')">← Назад</button>
             </div>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <script type="module">
@@ -611,7 +691,8 @@
             matchQueue: [],
             matchNumber: 0,
             stats: {},
-            finalStandings: null
+            finalStandings: null,
+            matchScore: null
         };
 
         let saveTimeout = null;
@@ -727,7 +808,7 @@
                 await window.fbSetDoc(ref, {
                     matchId: id, step: 'step-1', players: [], teamsCount: 0, basketsCount: 0,
                     captains: {}, assignments: {}, rollOrder: null,
-                    onHill: null, matchQueue: [], matchNumber: 0, stats: {}, finalStandings: null,
+                    onHill: null, matchQueue: [], matchNumber: 0, stats: {}, finalStandings: null, matchScore: null,
                     createdAt: Date.now()
                 });
                 const base = location.pathname.replace(/index\.html$/, '').replace(/\/$/, '');
@@ -839,6 +920,9 @@
                     switchStep('step-landing', 'step-5');
                 } else if (savedStep === 'step-4') {
                     switchStep('step-landing', 'step-4');
+                    document.getElementById('jereb-hint').innerHTML = teamsCount === 2
+                        ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч<br>(відповідно, інша команда вибирає поле).'
+                        : 'Киньте жереб, щоб з\'ясувати:<br>які перші дві команди грають між собою';
                     if (appState.matchNumber > 0 && appState.onHill) {
                         document.getElementById('jereb-btn').classList.add('hidden');
                         document.getElementById('jereb-hint').classList.add('hidden');
@@ -1308,6 +1392,9 @@
 
         function startPlay() {
             switchStep('step-3', 'step-4');
+            document.getElementById('jereb-hint').innerHTML = teamsCount === 2
+                ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч<br>(відповідно, інша команда вибирає поле).'
+                : 'Киньте жереб, щоб з\'ясувати:<br>які перші дві команди грають між собою';
             appState.step = 'step-4';
             saveState();
         }
@@ -1344,8 +1431,13 @@
         }
 
         function renderMatchUI() {
-            document.getElementById('match-title').innerText = 'Матч ' + appState.matchNumber;
-            document.getElementById('match-title').classList.remove('hidden');
+            const titleEl = document.getElementById('match-title');
+            if (teamsCount === 2) {
+                titleEl.classList.add('hidden');
+            } else {
+                titleEl.innerText = 'Матч ' + appState.matchNumber;
+                titleEl.classList.remove('hidden');
+            }
             document.getElementById('match-pairing').classList.remove('hidden');
             document.getElementById('result-buttons').classList.remove('hidden');
 
@@ -1361,16 +1453,19 @@
             winBBtn.innerText = 'Перемога';
             drawBtn.innerText = 'Нічия';
             [winABtn, winBBtn, drawBtn].forEach(b => b.classList.remove('lit-red', 'lit-blue', 'dimmed'));
-            if (appState.matchNumber === 1) {
+            if (appState.matchNumber === 1 && teamsCount !== 2) {
                 drawBtn.classList.add('dimmed');
             }
 
+            document.getElementById('score-input-wrap').classList.add('hidden');
+            document.getElementById('score-a-input').value = '';
+            document.getElementById('score-b-input').value = '';
             document.getElementById('confirm-hint').classList.add('hidden');
             document.getElementById('confirm-btn').classList.add('hidden');
         }
 
         function pickResult(result) {
-            if (result === 'draw' && appState.matchNumber === 1) return; // нічия неможлива у першому матчі
+            if (result === 'draw' && appState.matchNumber === 1 && teamsCount !== 2) return; // нічия неможлива у першому матчі (крім разового матчу 2 команд)
             pendingResult = result;
             const winABtn = document.getElementById('win-a-btn');
             const winBBtn = document.getElementById('win-b-btn');
@@ -1383,16 +1478,19 @@
             if (result === 'winA') {
                 winABtn.classList.add('lit-red'); winABtn.innerText = '🔥 Перемога';
                 winBBtn.classList.add('dimmed');
-                if (appState.matchNumber === 1) drawBtn.classList.add('dimmed');
+                if (appState.matchNumber === 1 && teamsCount !== 2) drawBtn.classList.add('dimmed');
             } else if (result === 'winB') {
                 winBBtn.classList.add('lit-red'); winBBtn.innerText = '🔥 Перемога';
                 winABtn.classList.add('dimmed');
-                if (appState.matchNumber === 1) drawBtn.classList.add('dimmed');
+                if (appState.matchNumber === 1 && teamsCount !== 2) drawBtn.classList.add('dimmed');
             } else if (result === 'draw') {
                 drawBtn.classList.add('lit-blue'); drawBtn.innerText = '🔥 Нічия';
                 winABtn.classList.add('dimmed'); winBBtn.classList.add('dimmed');
             }
 
+            if (teamsCount === 2) {
+                document.getElementById('score-input-wrap').classList.remove('hidden');
+            }
             document.getElementById('confirm-hint').classList.remove('hidden');
             document.getElementById('confirm-btn').classList.remove('hidden');
         }
@@ -1406,6 +1504,24 @@
             if (pendingResult === 'draw') {
                 stats[aKey].draws++; stats[bKey].draws++;
                 stats[aKey].points += 1; stats[bKey].points += 1;
+            } else {
+                const winnerKey = pendingResult === 'winA' ? aKey : bKey;
+                const loserKey = pendingResult === 'winA' ? bKey : aKey;
+                stats[winnerKey].wins++; stats[winnerKey].points += 3;
+                stats[loserKey].losses++;
+            }
+
+            if (teamsCount === 2) {
+                appState.matchScore = {
+                    aKey, bKey,
+                    aGoals: document.getElementById('score-a-input').value || '0',
+                    bGoals: document.getElementById('score-b-input').value || '0'
+                };
+                confirmFinishMatches();
+                return;
+            }
+
+            if (pendingResult === 'draw') {
                 // чемпіон (aKey) йде в чергу, претендент (bKey) залишається як новий чемпіон
                 appState.matchQueue.push(aKey);
                 const nextChallenger = appState.matchQueue.shift();
@@ -1413,8 +1529,6 @@
             } else {
                 const winnerKey = pendingResult === 'winA' ? aKey : bKey;
                 const loserKey = pendingResult === 'winA' ? bKey : aKey;
-                stats[winnerKey].wins++; stats[winnerKey].points += 3;
-                stats[loserKey].losses++;
                 appState.matchQueue.push(loserKey);
                 const nextChallenger = appState.matchQueue.shift();
                 appState.onHill = [winnerKey, nextChallenger];
@@ -1504,6 +1618,31 @@
         }
 
         function renderChampionsPage(sorted) {
+            const scoreEl = document.getElementById('match-score-display');
+            if (appState.matchScore) {
+                const ta = TEAM_DEFS.find(t => t.key === appState.matchScore.aKey);
+                const tb = TEAM_DEFS.find(t => t.key === appState.matchScore.bKey);
+                scoreEl.innerHTML = `
+                    <div class="scoreboard">
+                        <div class="scoreboard-team">
+                            <div class="scoreboard-logo" style="background-image:url('${ta ? ta.img : ''}')"></div>
+                            <div class="scoreboard-name">${ta ? ta.shortName : ''}</div>
+                        </div>
+                        <div class="scoreboard-score">
+                            <span>${appState.matchScore.aGoals}</span><span class="sep">:</span><span>${appState.matchScore.bGoals}</span>
+                        </div>
+                        <div class="scoreboard-team">
+                            <div class="scoreboard-logo" style="background-image:url('${tb ? tb.img : ''}')"></div>
+                            <div class="scoreboard-name">${tb ? tb.shortName : ''}</div>
+                        </div>
+                    </div>`;
+                scoreEl.classList.remove('hidden');
+            } else {
+                scoreEl.classList.add('hidden');
+            }
+
+            document.getElementById('final-table-wrap').classList.toggle('hidden', teamsCount === 2);
+
             const places = [
                 { wrap: document.getElementById('place-1-wrap'), teamsEl: document.getElementById('place-1-teams') },
                 { wrap: document.getElementById('place-2-wrap'), teamsEl: document.getElementById('place-2-teams') },
@@ -1551,6 +1690,58 @@
             renderChampionsPage(sorted);
             switchStep('step-4', 'step-5');
             saveState();
+        }
+
+        let lastGeneratedCanvas = null;
+
+        async function generateShareImage() {
+            const btn = document.getElementById('generate-image-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Генерую...';
+            btn.disabled = true;
+            try {
+                const target = document.getElementById('share-capture-area');
+                const canvas = await html2canvas(target, {
+                    backgroundColor: '#1e293b',
+                    scale: 2,
+                    useCORS: true
+                });
+                lastGeneratedCanvas = canvas;
+                const dataUrl = canvas.toDataURL('image/png');
+                document.getElementById('share-image-output').src = dataUrl;
+                switchStep('step-5', 'step-6');
+            } catch (err) {
+                alert('Помилка генерації зображення: ' + (err.message || err));
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function shareImage() {
+            if (!lastGeneratedCanvas) return;
+            const shareBtn = document.getElementById('share-btn');
+            const originalText = shareBtn.innerHTML;
+            try {
+                const blob = await new Promise(resolve => lastGeneratedCanvas.toBlob(resolve, 'image/png'));
+                const file = new File([blob], 'foxdraft-result.png', { type: 'image/png' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'FOXDraft — результати',
+                        text: 'Результати турніру FOXDraft'
+                    });
+                } else {
+                    alert('Цей браузер не підтримує пряме поширення файлів. Зроби скріншот зображення вище і надішли вручну.');
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    alert('Не вдалося поділитися: ' + (err.message || err) + '\n\nСпробуй зробити скріншот вручну.');
+                }
+            } finally {
+                shareBtn.innerHTML = originalText;
+            }
         }
     </script>
 </body>
