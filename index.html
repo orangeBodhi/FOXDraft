@@ -301,7 +301,7 @@
             <button class="btn" onclick="showMatchdayForm()">Почати MATCHDAY</button>
             <div id="matchday-form" class="hidden" style="margin-top:16px;">
                 <p>Введіть ID для сьогоднішнього ігрового дня — дата гри у форматі ДДММРР (наприклад: 080726).</p>
-                <input id="matchday-id-input" class="review-input" style="max-width:160px; text-align:center; display:inline-block;" maxlength="6" placeholder="080726">
+                <input id="matchday-id-input" class="review-input" style="max-width:160px; text-align:center; display:inline-block;" maxlength="6">
                 <div style="margin-top:12px;">
                     <button class="btn" onclick="createMatchday()">Створити</button>
                 </div>
@@ -549,6 +549,13 @@
                 return;
             }
 
+            if (appState.step === 'step-1b') {
+                recognizedNames = [...(appState.players || [])];
+                renderReviewList(recognizedNames);
+                switchStep('step-landing', 'step-1b');
+                return;
+            }
+
             document.getElementById('teams-row').innerHTML = '';
             TEAM_DEFS.slice(0, teamsCount).forEach(t => createTeamUI(t));
             renderTeamCountButtons();
@@ -693,6 +700,9 @@
                 setStatus(`Готово: ${allNames.length} гравців`, false);
                 renderReviewList(allNames);
                 switchStep('step-1', 'step-1b');
+                appState.step = 'step-1b';
+                appState.players = allNames;
+                saveState();
             } catch (err) {
                 setStatus('Помилка розпізнавання: ' + (err.message || err), false);
                 btn.disabled = false;
@@ -738,6 +748,8 @@
                         nameSpan.classList.remove('hidden');
                         input.classList.add('hidden');
                         editBtn.innerText = 'Правити';
+                        appState.players = recognizedNames;
+                        saveState();
                     }
                 };
                 input.addEventListener('keydown', (e) => {
@@ -754,6 +766,8 @@
             recognizedNames.push(name);
             renderReviewList(recognizedNames);
             input.value = '';
+            appState.players = recognizedNames;
+            saveState();
         }
 
         function goToDraft() {
