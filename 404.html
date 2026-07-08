@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>FOXDraft</title>
+<script>
+    // GitHub Pages віддає цю сторінку для будь-якого неіснуючого шляху типу /FOXDraft/080726.
+    // Перетворюємо останній сегмент шляху на query-параметр і повертаємось на index.html,
+    // де він перепишеться назад у чистий URL через history.replaceState.
+    (function () {
+        var path = location.pathname.replace(/\/$/, '');
+        var segments = path.split('/').filter(Boolean);
+        var last = segments[segments.length - 1] || '';
+        var base = path.slice(0, path.length - last.length) || '/';
+        if (!base.endsWith('/')) base += '/';
+        location.replace(base + (last ? '?mid=' + encodeURIComponent(last) : ''));
+    })();
+</script>
+</head>
+<body></body>
+</html>
