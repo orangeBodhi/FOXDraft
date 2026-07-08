@@ -357,7 +357,7 @@
 
         <div id="step-3" class="step hidden">
             <h2>Крок 3: Драфт</h2>
-            <p>Натисніть кнопку жеребу щоб дізнатись порядок відбору гравців капітанами.</p>
+            <p id="roll-hint">Натисніть кнопку жеребу щоб дізнатись порядок відбору гравців капітанами.</p>
             <button id="roll-btn" class="btn" onclick="rollDraftOrder()">Кинути жереб</button>
 
             <p style="margin-top:18px;">Команди розташовані зліва-на-право в порядку вибору гравців.</p>
@@ -620,6 +620,7 @@
                     });
                     row.classList.remove('hidden');
                     document.getElementById('roll-btn').classList.add('hidden');
+                    document.getElementById('roll-hint').classList.add('hidden');
                 }
                 checkDraftComplete();
 
@@ -946,6 +947,7 @@
 
             document.getElementById('teams-row-3').classList.add('hidden');
             document.getElementById('roll-btn').classList.remove('hidden');
+            document.getElementById('roll-hint').classList.remove('hidden');
             checkDraftComplete();
         }
 
@@ -966,6 +968,7 @@
             boxes.forEach(b => row.appendChild(b));
             row.classList.remove('hidden');
             document.getElementById('roll-btn').classList.add('hidden');
+            document.getElementById('roll-hint').classList.add('hidden');
             appState.rollOrder = boxes.map(b => b.dataset.key);
             saveState();
         }
