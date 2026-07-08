@@ -142,14 +142,8 @@
             min-height: 2.4em; display: flex; align-items: center; justify-content: center;
         }
 
-        .captain-badge {
-            width: 24px; height: 24px; border-radius: 50%;
-            background: linear-gradient(160deg, #ffd452, #d69a1f);
-            border: 2px solid #1a1206;
-            color: #1a1206; font-weight: 900; font-size: 0.75rem;
-            display: flex; align-items: center; justify-content: center;
-            margin-top: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        .captain-label {
+            font-size: 0.78rem; color: var(--text-dim); font-weight: 600; margin-top: 4px;
         }
 
         .captain-slot {
@@ -260,6 +254,17 @@
             50% { box-shadow: 0 0 18px 5px rgba(59,130,246,0.9), 0 0 34px 12px rgba(59,130,246,0.5); }
         }
 
+        .btn-finish {
+            background: linear-gradient(135deg, #f97316, #dc2626);
+            box-shadow: 0 4px 14px rgba(249,115,22,0.4);
+        }
+        .btn-finish.firing { animation: finish-burst .5s ease; }
+        @keyframes finish-burst {
+            0% { transform: scale(1); box-shadow: 0 4px 14px rgba(249,115,22,0.4); }
+            40% { transform: scale(1.12); box-shadow: 0 0 30px 12px rgba(249,115,22,0.85); }
+            100% { transform: scale(1); box-shadow: 0 4px 14px rgba(249,115,22,0.4); }
+        }
+
         #review-list { max-width: 420px; margin: 18px auto; text-align: left; }
         .review-row {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -319,6 +324,10 @@
             <h2>Перевірка заявки</h2>
             <p>Переглянь чи вірно вказані імена всіх футболістів? Якщо потрібно натисни "Правити" і зроби як треба. Наразі розпізнано наступних гравців:</p>
             <div id="review-list"></div>
+            <div style="display:flex; gap:8px; justify-content:center; align-items:center; max-width:420px; margin:0 auto 18px;">
+                <input id="new-player-input" class="review-input" type="text" placeholder="Ім'я гравця" style="flex:1;" onkeydown="if(event.key==='Enter') addManualPlayer();">
+                <button class="btn btn-ghost btn-sm" onclick="addManualPlayer()">Додати гравця не з групи</button>
+            </div>
             <button class="btn" onclick="goToDraft()">Перейти до жеребкування</button>
         </div>
 
@@ -385,6 +394,26 @@
 
             <h3 id="table-title" class="hidden" style="margin-top:30px;">Турнірна таблиця</h3>
             <div id="standings" class="teams-row hidden"></div>
+
+            <div style="text-align:center; margin-top:24px;">
+                <button id="finish-btn" class="btn btn-finish hidden" onclick="askFinishConfirm()">ЗАВЕРШИТИ МАТЧІ</button>
+            </div>
+            <div id="finish-confirm" class="hidden" style="margin-top:16px;">
+                <p>Ви впевнені?<br><span style="font-size:0.85rem;">Після завершення сформується остаточна турнірна таблиця.</span></p>
+                <button class="btn" onclick="confirmFinishMatches()">ТАК</button>
+                <button class="btn btn-ghost" onclick="cancelFinishConfirm()">НІ</button>
+            </div>
+        </div>
+
+        <div id="step-5" class="step hidden">
+            <div style="text-align:center; margin-bottom:20px;">
+                <img src="assets/champions.png" alt="Champions" style="max-width:280px; width:100%; border-radius:14px;">
+            </div>
+            <div id="champion-box" class="team-container" style="max-width:320px; margin:0 auto 20px; width:100%;"></div>
+            <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+                <div id="second-place-box" class="team-container" style="width:180px;"></div>
+                <div id="third-place-box" class="team-container" style="width:180px;"></div>
+            </div>
         </div>
     </div>
 
@@ -440,7 +469,8 @@
             onHill: null,
             matchQueue: [],
             matchNumber: 0,
-            stats: {}
+            stats: {},
+            finalStandings: null
         };
 
         let saveTimeout = null;
@@ -478,7 +508,7 @@
                 await window.fbSetDoc(ref, {
                     matchId: id, step: 'step-1', players: [], teamsCount: 0, basketsCount: 0,
                     captains: {}, assignments: {}, rollOrder: null,
-                    onHill: null, matchQueue: [], matchNumber: 0, stats: {},
+                    onHill: null, matchQueue: [], matchNumber: 0, stats: {}, finalStandings: null,
                     createdAt: Date.now()
                 });
                 location.href = location.pathname + '?id=' + id;
@@ -546,9 +576,9 @@
                 return;
             }
 
-            if (appState.step === 'step-3' || appState.step === 'step-4') {
+            if (appState.step === 'step-3' || appState.step === 'step-4' || appState.step === 'step-5') {
                 const savedStep = appState.step;
-                goToDraftStep3();
+                buildStep3Data();
                 Object.keys(appState.assignments || {}).forEach(name => {
                     const val = appState.assignments[name];
                     if (typeof val === 'string' && val.startsWith('team:')) {
@@ -569,8 +599,14 @@
                 }
                 checkDraftComplete();
 
-                if (savedStep === 'step-4') {
-                    appState.step = 'step-4';
+                document.getElementById('step-3').classList.add('hidden');
+                document.getElementById('step-4').classList.add('hidden');
+                document.getElementById('step-5').classList.add('hidden');
+
+                if (savedStep === 'step-5' && appState.finalStandings) {
+                    renderChampionsPage(appState.finalStandings);
+                    switchStep('step-landing', 'step-5');
+                } else if (savedStep === 'step-4') {
                     switchStep('step-landing', 'step-4');
                     if (appState.matchNumber > 0 && appState.onHill) {
                         document.getElementById('jereb-btn').classList.add('hidden');
@@ -711,6 +747,15 @@
             });
         }
 
+        function addManualPlayer() {
+            const input = document.getElementById('new-player-input');
+            const name = input.value.trim();
+            if (!name) return;
+            recognizedNames.push(name);
+            renderReviewList(recognizedNames);
+            input.value = '';
+        }
+
         function goToDraft() {
             renderPlayers(recognizedNames);
             switchStep('step-1b', 'step-2');
@@ -775,7 +820,7 @@
             div.innerHTML = `
                 <div class="team-name">${teamDef.name}</div>
                 <div class="team-logo" style="background-image:url('${teamDef.img}')"></div>
-                <div class="captain-badge">C</div>
+                <div class="captain-label">Капітан:</div>
                 <div class="captain-slot" data-team="${teamDef.name}"></div>`;
             row.appendChild(div);
         }
@@ -831,7 +876,7 @@
         }
 
         // ---- Крок 3: Драфт ----
-        function goToDraftStep3() {
+        function buildStep3Data() {
             const teamsRow3 = document.getElementById('teams-row-3');
             teamsRow3.innerHTML = '';
             TEAM_DEFS.slice(0, teamsCount).forEach(t => {
@@ -864,10 +909,14 @@
                 [...col.querySelectorAll('.flip-card')].forEach(tile => newWrap.appendChild(tile));
             });
 
-            switchStep('step-2', 'step-3');
             document.getElementById('teams-row-3').classList.add('hidden');
             document.getElementById('roll-btn').classList.remove('hidden');
             checkDraftComplete();
+        }
+
+        function goToDraftStep3() {
+            buildStep3Data();
+            switchStep('step-2', 'step-3');
             appState.step = 'step-3';
             saveState();
         }
@@ -1128,6 +1177,60 @@
             });
             document.getElementById('table-title').classList.remove('hidden');
             wrap.classList.remove('hidden');
+            document.getElementById('finish-btn').classList.remove('hidden');
+        }
+
+        function askFinishConfirm() {
+            const btn = document.getElementById('finish-btn');
+            btn.classList.add('firing');
+            setTimeout(() => btn.classList.remove('firing'), 500);
+            document.getElementById('finish-confirm').classList.remove('hidden');
+        }
+
+        function cancelFinishConfirm() {
+            document.getElementById('finish-confirm').classList.add('hidden');
+        }
+
+        function teamRosterInfo(key) {
+            const captain = appState.captains[key];
+            const others = Object.keys(appState.assignments).filter(n => appState.assignments[n] === 'team:' + key);
+            return { captain, others };
+        }
+
+        function renderChampionsPage(sorted) {
+            const boxes = [
+                document.getElementById('champion-box'),
+                document.getElementById('second-place-box'),
+                document.getElementById('third-place-box')
+            ];
+            sorted.slice(0, 3).forEach((key, i) => {
+                const t = TEAM_DEFS.find(td => td.key === key);
+                const { captain, others } = teamRosterInfo(key);
+                const box = boxes[i];
+                if (!box || !t) return;
+                box.innerHTML = `
+                    <div class="team-name">${t.name}</div>
+                    <div class="team-logo" style="background-image:url('${t.img}')"></div>
+                    <div style="font-size:0.85rem; text-align:left; width:100%; margin-top:8px; line-height:1.5;">
+                        Склад:<br>
+                        Капітан - ${captain || '—'}<br>
+                        ${others.map(n => '— ' + n).join('<br>')}
+                    </div>`;
+            });
+        }
+
+        function confirmFinishMatches() {
+            const activeKeys = TEAM_DEFS.slice(0, teamsCount).map(t => t.key);
+            const sorted = [...activeKeys].sort((a, b) => {
+                const sa = appState.stats[a], sb = appState.stats[b];
+                if (sb.points !== sa.points) return sb.points - sa.points;
+                return sb.wins - sa.wins;
+            });
+            appState.finalStandings = sorted;
+            appState.step = 'step-5';
+            renderChampionsPage(sorted);
+            switchStep('step-4', 'step-5');
+            saveState();
         }
     </script>
 </body>
