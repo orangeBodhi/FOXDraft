@@ -525,6 +525,10 @@
                 <div id="team-box-b" class="team-container match-team-box"></div>
             </div>
 
+            <div style="text-align:center; margin:8px 0 4px;">
+                <button id="change-pair-btn" class="btn btn-ghost btn-sm hidden" onclick="changePair()">🔁 Змінити пару</button>
+            </div>
+
             <div id="result-buttons" class="hidden" style="display:flex; justify-content:center; gap:8px; margin:16px 0;">
                 <button class="result-btn" id="win-a-btn" onclick="pickResult('winA')">Перемога</button>
                 <button class="result-btn" id="draw-btn" onclick="pickResult('draw')">Нічия</button>
@@ -586,7 +590,7 @@
                         <thead>
                             <tr style="color:var(--text-dim);">
                                 <th style="text-align:left; padding:6px 8px;">Команда</th>
-                                <th style="text-align:center; padding:6px 8px;">ОЧОК</th>
+                                <th style="text-align:center; padding:6px 8px;">ОЧКІВ</th>
                                 <th style="text-align:center; padding:6px 8px;">Матчів</th>
                                 <th style="text-align:center; padding:6px 8px;">Перемог</th>
                                 <th style="text-align:center; padding:6px 8px;">Поразок</th>
@@ -921,7 +925,7 @@
                 } else if (savedStep === 'step-4') {
                     switchStep('step-landing', 'step-4');
                     document.getElementById('jereb-hint').innerHTML = teamsCount === 2
-                        ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч<br>(відповідно, інша команда вибирає поле).<br> Команда яка буде зліва - м\'яч, справа - поле'
+                        ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч (відповідно, інша команда вибирає поле; команда яка буде зліва - м\'яч, справа - поле).'
                         : 'Киньте жереб, щоб з\'ясувати:<br>які перші дві команди грають між собою';
                     if (appState.matchNumber > 0 && appState.onHill) {
                         document.getElementById('jereb-btn').classList.add('hidden');
@@ -1393,7 +1397,7 @@
         function startPlay() {
             switchStep('step-3', 'step-4');
             document.getElementById('jereb-hint').innerHTML = teamsCount === 2
-                ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч<br>(відповідно, інша команда вибирає поле).<br> Команда яка буде зліва - м\'яч, справа - поле'
+                ? 'Киньте жереб, щоб визначити яка команда вибирає м\'яч (відповідно, інша команда вибирає поле; команда яка буде зліва - м\'яч, справа - поле).'
                 : 'Киньте жереб, щоб з\'ясувати:<br>які перші дві команди грають між собою';
             appState.step = 'step-4';
             saveState();
@@ -1462,6 +1466,17 @@
             document.getElementById('score-b-input').value = '';
             document.getElementById('confirm-hint').classList.add('hidden');
             document.getElementById('confirm-btn').classList.add('hidden');
+
+            document.getElementById('change-pair-btn').classList.toggle('hidden', teamsCount === 2);
+        }
+
+        function changePair() {
+            if (teamsCount === 2 || !appState.onHill || appState.matchQueue.length === 0) return;
+            const [aKey, bKey] = appState.onHill;
+            appState.matchQueue.push(aKey, bKey);
+            appState.onHill = appState.matchQueue.splice(0, 2);
+            renderMatchUI();
+            saveState();
         }
 
         function pickResult(result) {
