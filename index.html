@@ -220,6 +220,10 @@
             position: absolute; top: 4px; right: 7px; font-size: 12px;
             color: var(--text-dim); cursor: pointer; line-height: 1;
         }
+        .back-edit {
+            position: absolute; top: 4px; left: 7px; font-size: 12px;
+            cursor: pointer; line-height: 1;
+        }
         .flip-btn-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
             margin-top: 16px;
@@ -1080,6 +1084,9 @@
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') editBtn.click();
                 });
+                input.addEventListener('blur', () => {
+                    if (!input.classList.contains('hidden')) editBtn.click();
+                });
                 container.appendChild(row);
             });
         }
@@ -1313,7 +1320,7 @@
             card.innerHTML = `
                 <div class="flip-inner">
                     <div class="flip-front">${name}</div>
-                    <div class="flip-back"><span class="back-close">✕</span></div>
+                    <div class="flip-back"><span class="back-edit">✏️</span><span class="back-close">✕</span></div>
                 </div>`;
             const front = card.querySelector('.flip-front');
             const back = card.querySelector('.flip-back');
@@ -1322,7 +1329,39 @@
                 e.stopPropagation();
                 card.classList.remove('flipped');
             });
+            back.querySelector('.back-edit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                renamePlayer(card);
+            });
             return card;
+        }
+
+        function renamePlayer(card) {
+            const oldName = card.dataset.name;
+            const input = prompt('Виправити ім\'я гравця:', oldName);
+            if (input === null) return;
+            const newName = input.trim();
+            if (!newName || newName === oldName) return;
+
+            // players[]
+            const idx = appState.players.indexOf(oldName);
+            if (idx !== -1) appState.players[idx] = newName;
+
+            // якщо був капітаном
+            Object.keys(appState.captains).forEach(key => {
+                if (appState.captains[key] === oldName) appState.captains[key] = newName;
+            });
+
+            // якщо був у кошику/команді
+            if (Object.prototype.hasOwnProperty.call(appState.assignments, oldName)) {
+                appState.assignments[newName] = appState.assignments[oldName];
+                delete appState.assignments[oldName];
+            }
+
+            card.dataset.name = newName;
+            card.querySelector('.flip-front').innerText = newName;
+            card.classList.remove('flipped');
+            saveState();
         }
 
         function openFlip(card, back) {
