@@ -1447,7 +1447,8 @@
 
         function teamBoxHTML(key) {
             const t = TEAM_DEFS.find(td => td.key === key);
-            return `<div class="team-name">${t.name}</div><div class="team-logo" style="background-image:url('${t.img}')"></div>`;
+            const captain = appState.captains[key];
+            return `<div class="team-name">${t.name}</div><div class="team-logo" style="background-image:url('${t.img}')"></div><div class="captain-label">Капітан: ${captain || '—'}</div>`;
         }
 
         function rollFirstMatch() {
