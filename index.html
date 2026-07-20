@@ -252,6 +252,13 @@
             transition: transform .15s ease, background .2s ease, box-shadow .2s ease;
         }
         .match-team-box { width: 120px; flex-shrink: 0; padding: 10px 6px 8px; }
+        .match-roster-box {
+            width: 150px; flex-shrink: 0; align-items: flex-start; text-align: left;
+            font-size: 0.8rem; line-height: 1.5;
+        }
+        .match-roster-box .roster-title {
+            font-weight: 700; color: var(--emerald); font-size: 0.82rem; margin-bottom: 4px;
+        }
         .result-btn:active { transform: scale(0.95); }
         .result-btn.dimmed { opacity: 0.3; }
         .result-btn.lit-red {
@@ -322,6 +329,27 @@
             letter-spacing: 2px; display: flex; align-items: center; gap: 4px;
         }
         .scoreboard-score .sep { color: #64748b; font-size: 1.8rem; }
+
+        .btn-random-draft {
+            padding: 14px 26px;
+            border-radius: 14px;
+            border: none;
+            font-weight: 800;
+            font-size: 0.95rem;
+            font-family: inherit;
+            cursor: pointer;
+            color: #052e1f;
+            background: linear-gradient(135deg, #fbbf24, #f97316);
+            box-shadow: 0 6px 20px rgba(251,191,36,0.4);
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .btn-random-draft:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 26px rgba(251,191,36,0.55); }
+        .btn-random-draft:active { animation: dice-shake .4s ease; }
+        @keyframes dice-shake {
+            0%, 100% { transform: rotate(0deg) scale(0.95); }
+            25% { transform: rotate(-8deg) scale(0.95); }
+            75% { transform: rotate(8deg) scale(0.95); }
+        }
 
         .btn-generate {
             position: relative;
@@ -405,6 +433,7 @@
             .draft-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
             .flip-card { width: 92px; height: 112px; }
             .match-team-box { width: 92px; padding: 8px 4px 6px; }
+            .match-roster-box { width: 100%; order: 5; text-align: center; align-items: center; }
             .match-team-box .team-logo { width: 56px; height: 56px; }
             .match-team-box .team-name { font-size: 0.72rem; }
             .result-btn { padding: 9px 4px; font-size: 0.72rem; min-width: 0; }
@@ -509,6 +538,11 @@
             <p style="margin-top:22px;">Капітани по черзі вибирають гравців з кошиків. Для цього потрібно тапнути на гравця і вибрати йому відповідну команду.<br>Після драфту натискайте кнопку PLAY внизу.</p>
             <div id="draft-grid-3" class="draft-grid"></div>
 
+            <div style="text-align:center; margin-top:24px;">
+                <button id="random-draft-btn" class="btn-random-draft" onclick="randomDraft()">🎲 RANDOM DRAFT</button>
+                <p style="margin-top:8px; font-size:0.85rem;">Натисни, якщо хочеш випадковий розподіл гравців з кожної корзини по командам.</p>
+            </div>
+
             <div style="text-align:center; margin-top:20px;">
                 <button id="play-btn" class="btn hidden" onclick="startPlay()">PLAY</button>
             </div>
@@ -523,10 +557,12 @@
 
             <h3 id="match-title" class="hidden" style="margin-top:20px;"></h3>
 
-            <div id="match-pairing" class="hidden" style="display:flex; align-items:center; justify-content:center; gap:10px; margin:16px 0;">
+            <div id="match-pairing" class="hidden" style="display:flex; align-items:flex-start; justify-content:center; gap:10px; margin:16px 0; flex-wrap:wrap;">
+                <div id="roster-a-box" class="team-container match-roster-box"></div>
                 <div id="team-box-a" class="team-container match-team-box"></div>
-                <div style="font-weight:700; color:var(--text-dim); flex-shrink:0;">проти</div>
+                <div style="font-weight:700; color:var(--text-dim); flex-shrink:0; align-self:center;">проти</div>
                 <div id="team-box-b" class="team-container match-team-box"></div>
+                <div id="roster-b-box" class="team-container match-roster-box"></div>
             </div>
 
             <div style="text-align:center; margin:8px 0 4px;">
@@ -594,7 +630,7 @@
                         <thead>
                             <tr style="color:var(--text-dim);">
                                 <th style="text-align:left; padding:6px 8px;">Команда</th>
-                                <th style="text-align:center; padding:6px 8px;">ОЧКІВ</th>
+                                <th style="text-align:center; padding:6px 8px;">ОЧОК</th>
                                 <th style="text-align:center; padding:6px 8px;">Матчів</th>
                                 <th style="text-align:center; padding:6px 8px;">Перемог</th>
                                 <th style="text-align:center; padding:6px 8px;">Поразок</th>
@@ -1427,6 +1463,54 @@
             card.classList.remove('flipped');
         }
 
+        function shuffleArr(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function randomDraft() {
+            const teamKeys = TEAM_DEFS.slice(0, teamsCount).map(t => t.key).filter(k => appState.captains[k]);
+            if (teamKeys.length < 2) {
+                alert('Спочатку признач капітанів усіх команд!');
+                return;
+            }
+
+            let prevFirst = null;
+            for (let i = 1; i <= basketsCount; i++) {
+                const col = document.querySelector(`#draft-grid-3 .column-basket[data-basket="${i}"]`);
+                if (!col) continue;
+                const wrap = col.querySelector('.basket-tiles');
+                const cards = wrap ? [...wrap.querySelectorAll('.flip-card')] : [];
+
+                let order;
+                if (prevFirst && teamKeys.includes(prevFirst)) {
+                    const rest = shuffleArr(teamKeys.filter(k => k !== prevFirst));
+                    order = [...rest, prevFirst];
+                } else {
+                    order = shuffleArr(teamKeys);
+                }
+
+                cards.forEach((card, idx) => {
+                    if (idx >= order.length) return; // зайві гравці лишаються в кошику
+                    const teamKey = order[idx];
+                    const roster = document.querySelector(`.team-roster[data-key="${teamKey}"]`);
+                    if (roster) {
+                        roster.appendChild(card);
+                        appState.assignments[card.dataset.name] = 'team:' + teamKey;
+                    }
+                });
+
+                prevFirst = order[0];
+            }
+
+            checkDraftComplete();
+            saveState();
+        }
+
         function checkDraftComplete() {
             const remaining = document.querySelectorAll('#draft-grid-3 .basket-tiles .flip-card').length;
             const playBtn = document.getElementById('play-btn');
@@ -1449,6 +1533,11 @@
             const t = TEAM_DEFS.find(td => td.key === key);
             const captain = appState.captains[key];
             return `<div class="team-name">${t.name}</div><div class="team-logo" style="background-image:url('${t.img}')"></div><div class="captain-label">Капітан: ${captain || '—'}</div>`;
+        }
+
+        function rosterBoxHTML(key) {
+            const { captain, others } = teamRosterInfo(key);
+            return `<div class="roster-title">Склад команди:</div>Капітан - ${captain || '—'}<br>${others.map(n => '— ' + n).join('<br>')}`;
         }
 
         function rollFirstMatch() {
@@ -1488,6 +1577,8 @@
             const [aKey, bKey] = appState.onHill;
             document.getElementById('team-box-a').innerHTML = teamBoxHTML(aKey);
             document.getElementById('team-box-b').innerHTML = teamBoxHTML(bKey);
+            document.getElementById('roster-a-box').innerHTML = rosterBoxHTML(aKey);
+            document.getElementById('roster-b-box').innerHTML = rosterBoxHTML(bKey);
 
             pendingResult = null;
             const winABtn = document.getElementById('win-a-btn');
