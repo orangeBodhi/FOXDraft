@@ -538,9 +538,14 @@
             <p style="margin-top:22px;">Капітани по черзі вибирають гравців з кошиків. Для цього потрібно тапнути на гравця і вибрати йому відповідну команду.<br>Після драфту натискайте кнопку PLAY внизу.</p>
             <div id="draft-grid-3" class="draft-grid"></div>
 
-            <div style="text-align:center; margin-top:24px;">
+            <div id="random-draft-btn-wrap" style="text-align:center; margin-top:24px;">
                 <button id="random-draft-btn" class="btn-random-draft" onclick="randomDraft()">🎲 RANDOM DRAFT</button>
                 <p style="margin-top:8px; font-size:0.85rem;">Натисни, якщо хочеш випадковий розподіл гравців з кожної корзини по командам.</p>
+            </div>
+
+            <div id="random-draft-result" class="hidden">
+                <h3>Результат випадкового розподілу</h3>
+                <div id="random-draft-teams" class="teams-row"></div>
             </div>
 
             <div style="text-align:center; margin-top:20px;">
@@ -1507,6 +1512,13 @@
                 prevFirst = order[0];
             }
 
+            document.getElementById('random-draft-btn-wrap').classList.add('hidden');
+            const resultWrap = document.getElementById('random-draft-result');
+            const teamsEl = document.getElementById('random-draft-teams');
+            teamsEl.innerHTML = '';
+            TEAM_DEFS.slice(0, teamsCount).forEach(t => teamsEl.appendChild(makeRosterBox(t.key)));
+            resultWrap.classList.remove('hidden');
+
             checkDraftComplete();
             saveState();
         }
@@ -1536,8 +1548,9 @@
         }
 
         function rosterBoxHTML(key) {
+            const t = TEAM_DEFS.find(td => td.key === key);
             const { captain, others } = teamRosterInfo(key);
-            return `<div class="roster-title">Склад команди:</div>Капітан - ${captain || '—'}<br>${others.map(n => '— ' + n).join('<br>')}`;
+            return `<div class="roster-title">${t ? t.name : ''}</div><div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Склад команди:</div>Капітан - ${captain || '—'}<br>${others.map(n => '— ' + n).join('<br>')}`;
         }
 
         function rollFirstMatch() {
