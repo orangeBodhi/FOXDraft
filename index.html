@@ -351,6 +351,14 @@
             75% { transform: rotate(8deg) scale(0.95); }
         }
 
+        #share-capture-area.export-mode {
+            width: 700px;
+            max-width: none;
+            padding: 40px 32px;
+            background: var(--card-bg);
+            border-radius: 18px;
+        }
+
         .btn-generate {
             position: relative;
             padding: 14px 26px;
@@ -613,14 +621,16 @@
                 <div id="place-1-teams" class="teams-row" style="margin-bottom:20px;"></div>
             </div>
 
-            <div id="place-2-wrap" class="hidden">
-                <h3 class="place-label" style="color:#ef4444;">Срібло 🥈</h3>
-                <div id="place-2-teams" class="teams-row" style="margin-bottom:20px;"></div>
-            </div>
+            <div id="silver-bronze-row" style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+                <div id="place-2-wrap" class="hidden" style="flex:1 1 260px;">
+                    <h3 class="place-label" style="color:#ef4444;">Срібло 🥈</h3>
+                    <div id="place-2-teams" class="teams-row" style="margin-bottom:20px;"></div>
+                </div>
 
-            <div id="place-3-wrap" class="hidden">
-                <h3 class="place-label" style="color:#ef4444;">Бронза 🥉</h3>
-                <div id="place-3-teams" class="teams-row" style="margin-bottom:20px;"></div>
+                <div id="place-3-wrap" class="hidden" style="flex:1 1 260px;">
+                    <h3 class="place-label" style="color:#ef4444;">Бронза 🥉</h3>
+                    <div id="place-3-teams" class="teams-row" style="margin-bottom:20px;"></div>
+                </div>
             </div>
 
             <div id="place-4-wrap" class="hidden">
@@ -645,6 +655,7 @@
                     <tbody id="final-table-body"></tbody>
                 </table>
                 </div>
+                <div id="streak-record" class="hidden" style="margin-top:14px; font-weight:700; color:var(--emerald); text-align:center;"></div>
             </div>
             </div>
 
@@ -741,7 +752,8 @@
             matchNumber: 0,
             stats: {},
             finalStandings: null,
-            matchScore: null
+            matchScore: null,
+            matchHistory: []
         };
 
         let saveTimeout = null;
@@ -857,7 +869,7 @@
                 await window.fbSetDoc(ref, {
                     matchId: id, step: 'step-1', players: [], teamsCount: 0, basketsCount: 0,
                     captains: {}, assignments: {}, rollOrder: null,
-                    onHill: null, matchQueue: [], matchNumber: 0, stats: {}, finalStandings: null, matchScore: null,
+                    onHill: null, matchQueue: [], matchNumber: 0, stats: {}, finalStandings: null, matchScore: null, matchHistory: [],
                     createdAt: Date.now()
                 });
                 const base = location.pathname.replace(/index\.html$/, '').replace(/\/$/, '');
@@ -1660,6 +1672,9 @@
             const stats = appState.stats;
             stats[aKey].matches++; stats[bKey].matches++;
 
+            if (!appState.matchHistory) appState.matchHistory = [];
+            appState.matchHistory.push({ a: aKey, b: bKey, result: pendingResult });
+
             if (pendingResult === 'draw') {
                 stats[aKey].draws++; stats[bKey].draws++;
                 stats[aKey].points += 1; stats[bKey].points += 1;
@@ -1740,6 +1755,46 @@
             return { captain, others };
         }
 
+        function bestWinStreak() {
+            const perTeamResults = {};
+            (appState.matchHistory || []).forEach(m => {
+                if (!perTeamResults[m.a]) perTeamResults[m.a] = [];
+                if (!perTeamResults[m.b]) perTeamResults[m.b] = [];
+                if (m.result === 'draw') {
+                    perTeamResults[m.a].push('draw');
+                    perTeamResults[m.b].push('draw');
+                } else {
+                    const winnerKey = m.result === 'winA' ? m.a : m.b;
+                    perTeamResults[m.a].push(m.a === winnerKey ? 'win' : 'loss');
+                    perTeamResults[m.b].push(m.b === winnerKey ? 'win' : 'loss');
+                }
+            });
+
+            let bestKey = null, bestStreak = 0;
+            Object.keys(perTeamResults).forEach(key => {
+                let cur = 0, max = 0;
+                perTeamResults[key].forEach(r => {
+                    if (r === 'win') { cur++; max = Math.max(max, cur); } else { cur = 0; }
+                });
+                if (max > bestStreak) { bestStreak = max; bestKey = key; }
+            });
+
+            if (!bestKey || bestStreak < 1) return null;
+            const t = TEAM_DEFS.find(td => td.key === bestKey);
+            return { name: t ? t.shortName : bestKey, count: bestStreak };
+        }
+
+        function headToHeadWins(keyX, keyY) {
+            let winsX = 0;
+            (appState.matchHistory || []).forEach(m => {
+                const isPair = (m.a === keyX && m.b === keyY) || (m.a === keyY && m.b === keyX);
+                if (!isPair || m.result === 'draw') return;
+                const winnerKey = m.result === 'winA' ? m.a : m.b;
+                if (winnerKey === keyX) winsX++;
+            });
+            return winsX;
+        }
+
         function groupByRank(sortedKeys) {
             const groups = [];
             let current = [];
@@ -1747,7 +1802,11 @@
                 if (i === 0) { current = [key]; return; }
                 const prevKey = sortedKeys[i - 1];
                 const sp = appState.stats[prevKey], sc = appState.stats[key];
-                if (sp.points === sc.points && sp.wins === sc.wins && sp.losses === sc.losses) {
+                const tied = sp.points === sc.points
+                    && headToHeadWins(prevKey, key) === headToHeadWins(key, prevKey)
+                    && sp.wins === sc.wins
+                    && sp.draws === sc.draws;
+                if (tied) {
                     current.push(key);
                 } else {
                     groups.push(current);
@@ -1802,6 +1861,15 @@
 
             document.getElementById('final-table-wrap').classList.toggle('hidden', teamsCount === 2);
 
+            const recordEl = document.getElementById('streak-record');
+            const record = teamsCount === 2 ? null : bestWinStreak();
+            if (record) {
+                recordEl.innerText = `Рекорд: команда ${record.name} сьогодні перемагала ${record.count} ${record.count === 1 ? 'раз' : 'разів'} поспіль!`;
+                recordEl.classList.remove('hidden');
+            } else {
+                recordEl.classList.add('hidden');
+            }
+
             const places = [
                 { wrap: document.getElementById('place-1-wrap'), teamsEl: document.getElementById('place-1-teams') },
                 { wrap: document.getElementById('place-2-wrap'), teamsEl: document.getElementById('place-2-teams') },
@@ -1841,8 +1909,10 @@
             const sorted = [...activeKeys].sort((a, b) => {
                 const sa = appState.stats[a], sb = appState.stats[b];
                 if (sb.points !== sa.points) return sb.points - sa.points;
+                const h2hA = headToHeadWins(a, b), h2hB = headToHeadWins(b, a);
+                if (h2hB !== h2hA) return h2hB - h2hA;
                 if (sb.wins !== sa.wins) return sb.wins - sa.wins;
-                return sa.losses - sb.losses; // менше поразок — краще місце
+                return sa.draws - sb.draws; // менше нічиїх — краще місце
             });
             appState.finalStandings = sorted;
             appState.step = 'step-5';
@@ -1860,21 +1930,33 @@
             btn.disabled = true;
             try {
                 const target = document.getElementById('share-capture-area');
+                target.classList.add('export-mode');
                 const canvas = await html2canvas(target, {
                     backgroundColor: '#1e293b',
                     scale: 2,
                     useCORS: true
                 });
+                target.classList.remove('export-mode');
                 lastGeneratedCanvas = canvas;
                 const dataUrl = canvas.toDataURL('image/png');
                 document.getElementById('share-image-output').src = dataUrl;
                 switchStep('step-5', 'step-6');
             } catch (err) {
+                document.getElementById('share-capture-area').classList.remove('export-mode');
                 alert('Помилка генерації зображення: ' + (err.message || err));
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
+        }
+
+        function matchdayCaption() {
+            const days = ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
+            const now = new Date();
+            const dd = String(now.getDate()).padStart(2, '0');
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = now.getFullYear();
+            return `FOX Football League – MATCHDAY ${days[now.getDay()]} ${dd}.${mm}.${yyyy}`;
         }
 
         async function shareImage() {
@@ -1888,8 +1970,8 @@
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     await navigator.share({
                         files: [file],
-                        title: 'FOXDraft — результати',
-                        text: 'Результати турніру FOXDraft'
+                        title: matchdayCaption(),
+                        text: matchdayCaption()
                     });
                 } else {
                     alert('Цей браузер не підтримує пряме поширення файлів. Зроби скріншот зображення вище і надішли вручну.');
